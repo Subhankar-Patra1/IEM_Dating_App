@@ -1,0 +1,40 @@
+version: '3.8'
+
+services:
+  # Primary Database
+  postgres:
+    image: postgres:13-alpine
+    environment:
+      POSTGRES_USER: iem_dating_user
+      POSTGRES_PASSWORD: iem_dating_password
+      POSTGRES_DB: iem_dating_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  # Caching and Session Store
+  redis:
+    image: redis:6-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    restart: unless-stopped
+
+  # Message Queue (Reporting, Matches, etc.)
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    ports:
+      - "5672:5672"   # Connection port
+      - "15672:15672" # Management UI
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  redis_data:

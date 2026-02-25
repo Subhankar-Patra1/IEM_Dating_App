@@ -1,0 +1,14 @@
+appId: com.anonymous.mobile
+---
+- launchApp:
+    clearState: true
+- tapOn: "Email (@iemkolkata.edu.in)"
+- inputText: "student@iemkolkata.edu.in"
+- tapOn: "Password"
+- inputText: "password123"
+- tapOn: "Login"
+- assertVisible: "Swipe Dashboard"
+- tapOn: "Profile"
+- assertVisible: "User Profile Settings"
+- tapOn: "Logout"
+- assertVisible: "Login"
