@@ -21,6 +21,7 @@ import { updateUser } from '../../store/authSlice';
 import { colors } from '../../core/theme/colors';
 import { useNavigation } from '@react-navigation/native';
 import { SwipeCard } from '../../features/discovery/components/SwipeCard';
+import { PremiumProfileModal } from '../../components/PremiumProfileModal';
 
 const { width } = Dimensions.get('window');
 const PHOTO_SIZE = width * 0.35; // Compact horizontal scrolling photos
@@ -360,25 +361,12 @@ export const ProfileScreen = () => {
         )}
       </ScrollView>
 
-      {/* Preview Modal */}
-      <Modal visible={previewVisible} transparent animationType="slide">
-        <View style={styles.modalOverlay}>
-          <TouchableOpacity 
-            style={styles.closePreviewButton} 
-            onPress={() => setPreviewVisible(false)}
-          >
-            <Ionicons name="close-circle" size={40} color="#fff" />
-          </TouchableOpacity>
-          <View style={styles.previewContainer}>
-            <SwipeCard
-              user={previewUser}
-              onLike={() => {}}
-              onPass={() => {}}
-              isActiveCard={true}
-            />
-          </View>
-        </View>
-      </Modal>
+      {/* Premium Profile Preview Modal */}
+      <PremiumProfileModal
+        visible={previewVisible}
+        onClose={() => setPreviewVisible(false)}
+        user={previewUser}
+      />
 
       {/* Full Screen Image Viewer */}
       <Modal 
@@ -649,27 +637,6 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
 
-  // Modal
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.95)',
-    justifyContent: 'center',
-  },
-  closePreviewButton: {
-    position: 'absolute',
-    top: 50,
-    right: 20,
-    zIndex: 10,
-    shadowColor: '#000',
-    shadowOpacity: 0.5,
-    shadowRadius: 10,
-  },
-  previewContainer: {
-    flex: 1,
-    marginTop: 100,
-    marginBottom: 40,
-    marginHorizontal: 12,
-  },
   // Image Viewer
   imageViewerOverlay: {
     flex: 1,
