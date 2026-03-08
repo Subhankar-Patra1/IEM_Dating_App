@@ -1,0 +1,32 @@
+
+FAILURE: Build failed with an exception.
+
+* Where:
+Build file 'E:\IEM_Dating_App\apps\mobile\android\build.gradle' line: 24
+
+* What went wrong:
+A problem occurred evaluating root project 'mobile'.
+> Failed to apply plugin 'com.facebook.react.rootproject'.
+   > A problem occurred configuring project ':app'.
+      > SDK location not found. Define a valid SDK location with an ANDROID_HOME environment variable or by setting the sdk.dir path in your project's local properties file at 'E:\IEM_Dating_App\apps\mobile\android\local.properties'.
+
+* Try:
+> Run with --stacktrace option to get the stack trace.
+> Run with --info or --debug option to get more log output.
+> Run with --scan to get full insights.
+> Get more help at https://help.gradle.org.
+
+BUILD FAILED in 2s
+[31mError: E:\IEM_Dating_App\apps\mobile\android\gradlew.bat app:assembleDebug -x lint -x test --configure-on-demand --build-cache -PreactNativeDevServerPort=8081 -PreactNativeArchitectures=arm64-v8a,armeabi-v7a exited with non-zero code: 1[39m
+[90mError: E:\IEM_Dating_App\apps\mobile\android\gradlew.bat app:assembleDebug -x lint -x test --configure-on-demand --build-cache -PreactNativeDevServerPort=8081 -PreactNativeArchitectures=arm64-v8a,armeabi-v7a exited with non-zero code: 1[39m
+[90m    at ChildProcess.completionListener (E:\IEM_Dating_App\node_modules\@expo\spawn-async\src\spawnAsync.ts:67:13)[39m
+[90m    at Object.onceWrapper (node:events:634:26)[39m
+[90m    at ChildProcess.emit (node:events:519:28)[39m
+[90m    at ChildProcess.cp.emit (E:\IEM_Dating_App\node_modules\cross-spawn\lib\enoent.js:34:29)[39m
+[90m    at maybeClose (node:internal/child_process:1101:16)[39m
+[90m    at Process.ChildProcess._handle.onexit (node:internal/child_process:304:5)[39m
+[90m    ...[39m
+[90m    at spawnAsync (E:\IEM_Dating_App\node_modules\@expo\spawn-async\src\spawnAsync.ts:28:21)[39m
+[90m    at spawnGradleAsync (E:\IEM_Dating_App\node_modules\@expo\cli\src\start\platforms\android\gradle.ts:134:28)[39m
+[90m    at assembleAsync (E:\IEM_Dating_App\node_modules\@expo\cli\src\start\platforms\android\gradle.ts:83:16)[39m
+[90m    at runAndroidAsync (E:\IEM_Dating_App\node_modules\@expo\cli\src\run\android\runAndroidAsync.ts:62:24)[39m

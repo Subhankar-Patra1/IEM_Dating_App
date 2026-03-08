@@ -1,25 +1,49 @@
 import { io, Socket } from 'socket.io-client';
 import { store } from '../store';
+import { Platform } from 'react-native';
 
-const SOCKET_URL = 'http://10.0.2.2:3000'; // Default Android Localhost
+// Use the device-appropriate URL
+const SOCKET_URL = Platform.OS === 'android' ? 'http://10.255.179.109:3000' : 'http://localhost:3000';
 
 let socket: Socket | null = null;
 
 export const initSocket = () => {
   const token = store.getState().auth.token;
-  if (!token || socket) return;
+  if (!token) return;
+  if (socket?.connected) return; // Already connected
+
+  // Disconnect previous socket if exists but not connected
+  if (socket) {
+    socket.disconnect();
+    socket = null;
+  }
 
   socket = io(SOCKET_URL, {
     auth: { token },
+    transports: ['websocket'],
+    reconnection: true,
+    reconnectionAttempts: 10,
+    reconnectionDelay: 1000,
   });
 
   socket.on('connect', () => {
     console.log('[Socket] Connected to WebSocket server');
   });
 
-  socket.on('disconnect', () => {
-    console.log('[Socket] Disconnected from WebSocket server');
+  socket.on('connect_error', (err) => {
+    console.warn('[Socket] Connection error:', err.message);
+  });
+
+  socket.on('disconnect', (reason) => {
+    console.log('[Socket] Disconnected:', reason);
   });
 };
 
-export const getSocket = () => socket;
+export const getSocket = (): Socket | null => socket;
+
+export const disconnectSocket = () => {
+  if (socket) {
+    socket.disconnect();
+    socket = null;
+  }
+};

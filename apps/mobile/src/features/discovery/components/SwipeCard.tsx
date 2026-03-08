@@ -1,80 +1,699 @@
-import React from 'react';
-import { View, Text, Image, StyleSheet, TouchableOpacity } from 'react-native';
-import { colors } from '../../../core/theme/colors';
-import { typography } from '../../../core/theme/typography';
+import React, { useState, useMemo, useEffect, useRef } from "react";
+import {
+  View,
+  Text,
+  ImageBackground,
+  StyleSheet,
+  TouchableOpacity,
+  Image,
+  ActivityIndicator,
+} from "react-native";
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withTiming,
+  Easing,
+  cancelAnimation,
+  runOnJS,
+} from "react-native-reanimated";
+import { BlurView } from "expo-blur";
+import { LinearGradient } from "expo-linear-gradient";
+import { Ionicons, MaterialIcons } from "@expo/vector-icons";
+import { colors } from "../../../core/theme/colors";
+import { Video, ResizeMode } from "expo-av";
+import { ProfileDetailModal } from "./profile-detail/ProfileDetailModal";
 
 interface SwipeCardProps {
-  user: { name: string; department: string; year: string; imageUri: string; intent: string; };
+  user: {
+    id: string;
+    name: string;
+    year: string;
+    department: string;
+    imageUri: string;
+    intent: string;
+    matchPercentage?: number;
+    distance?: string;
+    tags?: string[];
+    photos?: string[];
+    video?: string | null;
+    videoPreview?: string | null;
+  };
   onLike: () => void;
   onPass: () => void;
+  onStar?: () => void;
+  isActiveCard?: boolean;
 }
 
-export const SwipeCard: React.FC<SwipeCardProps> = ({ user, onLike, onPass }) => {
+export const SwipeCard: React.FC<SwipeCardProps> = ({
+  user,
+  onLike,
+  onPass,
+  onStar,
+  isActiveCard = true,
+}) => {
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [isMuted, setIsMuted] = useState(true);
+  const [videoReady, setVideoReady] = useState(false);
+  const [fullVideoReady, setFullVideoReady] = useState(false);
+  const [mediaError, setMediaError] = useState(false);
+  const [isModalVisible, setIsModalVisible] = useState(false);
+
+  const videoRef = useRef<any>(null);
+  const fullVideoRef = useRef<any>(null);
+  const prevIndexRef = useRef(0);
+
+  const mediaItems = useMemo(() => {
+    const items: {
+      type: "video" | "image";
+      uri: string;
+      previewUri?: string;
+    }[] = [];
+    if (user.video) {
+      items.push({
+        type: "video",
+        uri: user.video,
+        previewUri: user.videoPreview || undefined,
+      });
+    }
+    if (user.photos && user.photos.length > 0) {
+      user.photos.forEach((photo) => items.push({ type: "image", uri: photo }));
+    }
+    if (items.length === 0 && user.imageUri) {
+      items.push({ type: "image", uri: user.imageUri });
+    }
+    return items;
+  }, [user.video, user.videoPreview, user.photos, user.imageUri]);
+
+  const videoIndex = useMemo(
+    () => mediaItems.findIndex((m) => m.type === "video"),
+    [mediaItems],
+  );
+  const currentMedia = mediaItems[currentIndex] || mediaItems[0];
+
+  useEffect(() => {
+    mediaItems.forEach((item) => {
+      if (item.type === "image" && item.uri) {
+        Image.prefetch(item.uri).catch((err) =>
+          console.log("Prefetch error:", err),
+        );
+      }
+    });
+  }, [mediaItems]);
+
+  const handleNext = () => {
+    if (currentIndex < mediaItems.length - 1) {
+      cancelAnimation(progress);
+      progress.value = 0;
+      setCurrentIndex((prev) => prev + 1);
+    }
+  };
+
+  const handlePrev = () => {
+    if (currentIndex > 0) {
+      cancelAnimation(progress);
+      progress.value = 0;
+      setCurrentIndex((prev) => prev - 1);
+    }
+  };
+
+  const progress = useSharedValue(0);
+
+  const animatedProgressStyle = useAnimatedStyle(() => {
+    return {
+      width: `${progress.value * 100}%`,
+    };
+  });
+
+  const incrementIndex = () => {
+    setCurrentIndex((prev) => prev + 1);
+  };
+
+  const handleMediaError = () => {
+    if (currentIndex < mediaItems.length - 1) {
+      setCurrentIndex((prev) => prev + 1);
+    } else {
+      setMediaError(true);
+    }
+  };
+
+  useEffect(() => {
+    const prevIndex = prevIndexRef.current;
+    if (prevIndex === videoIndex && currentIndex !== videoIndex) {
+      if (videoRef.current) videoRef.current.setPositionAsync(0);
+      if (fullVideoRef.current) fullVideoRef.current.setPositionAsync(0);
+    }
+    prevIndexRef.current = currentIndex;
+  }, [currentIndex, videoIndex]);
+
+  useEffect(() => {
+    progress.value = 0;
+
+    if (currentMedia && currentMedia.type === "image") {
+      progress.value = withTiming(
+        1,
+        { duration: 5000, easing: Easing.linear },
+        (finished) => {
+          if (finished && currentIndex < mediaItems.length - 1) {
+            runOnJS(incrementIndex)();
+          }
+        },
+      );
+    }
+
+    return () => {
+      cancelAnimation(progress);
+    };
+  }, [currentIndex, currentMedia]);
+
+  const matchPercentage = user.matchPercentage || 98;
+  const getBadgeColor = (percentage: number) => {
+    if (percentage >= 60) return "#4ade80"; // Green
+    if (percentage >= 40) return "#facc15"; // Yellow
+    return "#f87171"; // Red
+  };
+
+  const showFallback = mediaError || mediaItems.length === 0 || !currentMedia;
+
   return (
-    <View style={styles.card}>
-      <Image source={{ uri: user.imageUri }} style={styles.image} />
-      
-      <View style={styles.overlay}>
-        <View style={styles.tag}>
-          <Text style={styles.tagText}>{user.intent}</Text>
+    <View style={styles.container}>
+      <View style={styles.card}>
+        {/* UPPER SECTION: Media */}
+        <View style={styles.mediaContainer}>
+          {/* Background Media */}
+          <View style={StyleSheet.absoluteFill} pointerEvents="none">
+            {showFallback ? (
+              <LinearGradient
+                colors={["#2c3e50", "#3498db"]}
+                style={[
+                  StyleSheet.absoluteFill,
+                  { justifyContent: "center", alignItems: "center" },
+                ]}
+              >
+                <Ionicons
+                  name="person"
+                  size={120}
+                  color="rgba(255,255,255,0.2)"
+                />
+              </LinearGradient>
+            ) : (
+              mediaItems.map((item, idx) => {
+                const isActive = idx === currentIndex;
+                return (
+                  <View
+                    key={idx}
+                    style={[
+                      StyleSheet.absoluteFill,
+                      { opacity: isActive ? 1 : 0 },
+                    ]}
+                  >
+                    {item.type === "video" ? (
+                      <>
+                        {item.previewUri ? (
+                          <>
+                            {!videoReady && !fullVideoReady && (
+                              <View
+                                style={[
+                                  StyleSheet.absoluteFill,
+                                  {
+                                    backgroundColor: "#111",
+                                    justifyContent: "center",
+                                    alignItems: "center",
+                                    zIndex: 1,
+                                  },
+                                ]}
+                              >
+                                <ActivityIndicator
+                                  size="large"
+                                  color={colors.primary}
+                                />
+                              </View>
+                            )}
+                            <Video
+                              ref={videoRef}
+                              source={{ uri: item.previewUri }}
+                              style={[
+                                StyleSheet.absoluteFill,
+                                { opacity: fullVideoReady ? 0 : 1 },
+                              ]}
+                              resizeMode={ResizeMode.COVER}
+                              shouldPlay={
+                                isActiveCard && isActive && !fullVideoReady
+                              }
+                              isLooping={true}
+                              isMuted={isMuted}
+                              onReadyForDisplay={() => setVideoReady(true)}
+                              onError={handleMediaError}
+                            />
+                            <Video
+                              ref={fullVideoRef}
+                              source={{ uri: item.uri }}
+                              style={[
+                                StyleSheet.absoluteFill,
+                                { opacity: fullVideoReady ? 1 : 0 },
+                              ]}
+                              resizeMode={ResizeMode.COVER}
+                              shouldPlay={
+                                isActiveCard && isActive && fullVideoReady
+                              }
+                              isLooping={false}
+                              isMuted={isMuted}
+                              onReadyForDisplay={() => setFullVideoReady(true)}
+                              onError={handleMediaError}
+                              onPlaybackStatusUpdate={(status: any) => {
+                                if (
+                                  isActive &&
+                                  fullVideoReady &&
+                                  status.isLoaded
+                                ) {
+                                  if (
+                                    status.durationMillis &&
+                                    status.positionMillis
+                                  ) {
+                                    progress.value =
+                                      status.positionMillis /
+                                      status.durationMillis;
+                                  }
+                                  if (status.didJustFinish) {
+                                    fullVideoRef.current?.setPositionAsync(0);
+                                    if (currentIndex < mediaItems.length - 1) {
+                                      setCurrentIndex((prev) => prev + 1);
+                                    }
+                                  }
+                                }
+                              }}
+                            />
+                          </>
+                        ) : (
+                          <>
+                            {!videoReady && (
+                              <View
+                                style={[
+                                  StyleSheet.absoluteFill,
+                                  {
+                                    backgroundColor: "#111",
+                                    justifyContent: "center",
+                                    alignItems: "center",
+                                  },
+                                ]}
+                              >
+                                <ActivityIndicator
+                                  size="large"
+                                  color={colors.primary}
+                                />
+                              </View>
+                            )}
+                            <Video
+                              ref={videoRef}
+                              source={{ uri: item.uri }}
+                              style={[
+                                StyleSheet.absoluteFill,
+                                { opacity: videoReady ? 1 : 0 },
+                              ]}
+                              resizeMode={ResizeMode.COVER}
+                              shouldPlay={isActiveCard && isActive}
+                              isLooping={false}
+                              isMuted={isMuted}
+                              onReadyForDisplay={() => setVideoReady(true)}
+                              onError={handleMediaError}
+                              onPlaybackStatusUpdate={(status: any) => {
+                                if (isActive && status.isLoaded) {
+                                  if (
+                                    status.durationMillis &&
+                                    status.positionMillis
+                                  ) {
+                                    progress.value =
+                                      status.positionMillis /
+                                      status.durationMillis;
+                                  }
+                                  if (status.didJustFinish) {
+                                    videoRef.current?.setPositionAsync(0);
+                                    if (currentIndex < mediaItems.length - 1) {
+                                      setCurrentIndex((prev) => prev + 1);
+                                    }
+                                  }
+                                }
+                              }}
+                            />
+                          </>
+                        )}
+                      </>
+                    ) : (
+                      <ImageBackground
+                        source={{ uri: item.uri }}
+                        style={StyleSheet.absoluteFill}
+                        onError={handleMediaError}
+                      />
+                    )}
+                  </View>
+                );
+              })
+            )}
+          </View>
+
+          {/* Bottom Gradient for Text Readability - strictly 60% overlay */}
+          <LinearGradient
+            colors={["transparent", "rgba(0,0,0,0.6)", "rgba(0,0,0,0.9)"]}
+            style={styles.bottomGradient}
+            pointerEvents="none"
+          />
+
+          {/* Tap Zones */}
+          <View style={styles.tapZonesContainer}>
+            <TouchableOpacity
+              style={styles.tapZoneLeft}
+              onPress={(e) => {
+                e.stopPropagation();
+                handlePrev();
+              }}
+              activeOpacity={1}
+              delayPressIn={0}
+            />
+            <TouchableOpacity
+              style={styles.tapZoneRight}
+              onPress={(e) => {
+                e.stopPropagation();
+                handleNext();
+              }}
+              activeOpacity={1}
+              delayPressIn={0}
+            />
+          </View>
+
+          {/* Top Progress Bar */}
+          <View style={styles.progressContainer}>
+            {mediaItems.map((_, idx) => {
+              const isCompleted = idx < currentIndex;
+              const isActive = idx === currentIndex;
+
+              return (
+                <View key={idx} style={styles.progressItemContainer}>
+                  {isCompleted ? (
+                    <View
+                      style={[
+                        styles.progressItem,
+                        { width: "100%", backgroundColor: "#FFF" },
+                      ]}
+                    />
+                  ) : isActive ? (
+                    <Animated.View
+                      style={[
+                        styles.progressItem,
+                        animatedProgressStyle,
+                        { backgroundColor: "#FFF" },
+                      ]}
+                    />
+                  ) : (
+                    <View style={[styles.progressItem, { width: "0%" }]} />
+                  )}
+                </View>
+              );
+            })}
+          </View>
+
+          {/* Top Badges (Match % + Mute Combined) */}
+          <View style={styles.topBadgesOverlay} pointerEvents="box-none">
+            <View style={styles.matchPillContainer}>
+              <Text
+                style={[
+                  styles.matchPillText,
+                  { color: getBadgeColor(matchPercentage) },
+                ]}
+              >
+                Match {matchPercentage}%
+              </Text>
+              {currentMedia &&
+                currentMedia.type === "video" &&
+                !showFallback && (
+                  <>
+                    <View style={styles.muteDivider} />
+                    <TouchableOpacity
+                      style={styles.inlineMuteButton}
+                      onPress={() => setIsMuted((prev) => !prev)}
+                      hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                      activeOpacity={0.7}
+                    >
+                      <Ionicons
+                        name={isMuted ? "volume-mute" : "volume-medium"}
+                        size={16}
+                        color="#FFF"
+                      />
+                    </TouchableOpacity>
+                  </>
+                )}
+            </View>
+          </View>
+
+          {/* Info Overlay (3 Rows: Name/Year/Badges -> Department/Distance -> Interests) */}
+          <View style={styles.infoOverlay} pointerEvents="box-none">
+            <View style={styles.infoContentContainer}>
+              <View style={styles.textContentContainer}>
+                {/* ROW 1: Name, Year, Verification, Online Status */}
+                <View style={styles.nameRow}>
+                  <Text style={[styles.name, styles.shadowText]}>
+                    {user.name.split(" ")[0]}, {user.year.replace(" Year", "")}
+                  </Text>
+                  <Ionicons
+                    name="checkmark-circle"
+                    size={22}
+                    color="#2196F3"
+                    style={styles.verifiedIcon}
+                  />
+                  <View style={styles.onlineDot} />
+                </View>
+
+                {/* ROW 2: Department and distance */}
+                <Text style={[styles.locationText, styles.shadowText]}>
+                  {user.department} • {user.distance || "2.4km"}
+                </Text>
+              </View>
+
+              {/* Up Arrow Icon Button (Right side) */}
+              <TouchableOpacity
+                style={styles.upArrowContainer}
+                activeOpacity={0.8}
+                onPress={() => setIsModalVisible(true)}
+              >
+                <MaterialIcons
+                  name="keyboard-arrow-up"
+                  size={30}
+                  color="#FFF"
+                />
+              </TouchableOpacity>
+            </View>
+
+            {/* ROW 3: Tags / Interests */}
+            {user.tags && user.tags.length > 0 && (
+              <View style={styles.tagsRow}>
+                {user.tags.slice(0, 3).map((tag, idx) => (
+                  <BlurView
+                    intensity={20}
+                    style={styles.tagPillContainer}
+                    key={idx}
+                    tint="light"
+                  >
+                    <View style={styles.tagPill}>
+                      <Text style={styles.tagText}>{tag}</Text>
+                    </View>
+                  </BlurView>
+                ))}
+              </View>
+            )}
+          </View>
         </View>
-        <Text style={styles.name}>{user.name}, {user.year}</Text>
-        <Text style={styles.department}>{user.department}</Text>
       </View>
 
-      <View style={styles.actionRow}>
-        <TouchableOpacity style={[styles.fab, styles.fabPass]} onPress={onPass}>
-          <Text style={styles.fabIcon}>✕</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={[styles.fab, styles.fabLike]} onPress={onLike}>
-          <Text style={styles.fabIcon}>♥</Text>
-        </TouchableOpacity>
-      </View>
+      <ProfileDetailModal
+        user={user}
+        isVisible={isModalVisible}
+        onClose={() => setIsModalVisible(false)}
+        onLike={onLike}
+        onPass={onPass}
+      />
     </View>
   );
 };
 
 const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    paddingTop: 8,
+    paddingBottom: 24,
+    position: "relative",
+  },
   card: {
-    flex: 0.85,
+    flex: 1,
     borderRadius: 20,
-    backgroundColor: colors.surface,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 10,
+    overflow: "hidden",
+    backgroundColor: "#000",
+    width: "100%",
+  },
+  mediaContainer: {
+    flex: 1,
+    position: "relative",
+    backgroundColor: "#000",
+  },
+  bottomGradient: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: "60%",
+    zIndex: 2,
+  },
+  tapZonesContainer: {
+    ...StyleSheet.absoluteFillObject,
+    flexDirection: "row",
+    zIndex: 5,
     elevation: 5,
-    overflow: 'hidden',
   },
-  image: { ...StyleSheet.absoluteFillObject, width: undefined, height: undefined },
-  overlay: {
-    position: 'absolute',
-    bottom: 0, left: 0, right: 0,
-    padding: 24,
-    paddingTop: 80, // Allow space for gradient if added later
-    backgroundColor: 'rgba(0,0,0,0.4)', // Simplified overlay
+  tapZoneLeft: {
+    flex: 1,
+    height: "100%",
   },
-  tag: {
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    alignSelf: 'flex-start',
-    paddingHorizontal: 12, paddingVertical: 4,
-    borderRadius: 16, marginBottom: 8,
+  tapZoneRight: {
+    flex: 1,
+    height: "100%",
   },
-  tagText: { color: colors.text.inverse, fontSize: 12, fontWeight: '600' },
-  name: { fontSize: 28, fontWeight: '700', color: colors.text.inverse, marginBottom: 4 },
-  department: { fontSize: 16, color: colors.text.inverse, opacity: 0.9 },
-  actionRow: {
-    position: 'absolute', bottom: -28, // Pull slightly down 
-    flexDirection: 'row', width: '100%',
-    justifyContent: 'space-evenly',
+  progressContainer: {
+    flexDirection: "row",
+    position: "absolute",
+    top: 12,
+    left: 12,
+    right: 12,
+    height: 4,
+    gap: 4,
+    zIndex: 10,
   },
-  fab: {
-    width: 64, height: 64, borderRadius: 32,
-    justifyContent: 'center', alignItems: 'center',
-    backgroundColor: colors.surface,
-    elevation: 8, shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 8, shadowOffset: { width:0, height:4 }
+  progressItemContainer: {
+    flex: 1,
+    height: "100%",
+    backgroundColor: "rgba(0,0,0,0.2)",
+    borderRadius: 2,
+    overflow: "hidden",
   },
-  fabPass: { borderColor: colors.error, borderWidth: 1 },
-  fabLike: { borderColor: colors.secondary, borderWidth: 1 },
-  fabIcon: { fontSize: 24 },
+  progressItem: {
+    height: "100%",
+  },
+  topBadgesOverlay: {
+    position: "absolute",
+    top: 24,
+    left: 16,
+    zIndex: 10,
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  matchPillContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(0,0,0,0.6)",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.1)",
+  },
+  matchPillText: {
+    fontSize: 14,
+    fontWeight: "800",
+    letterSpacing: 0.5,
+  },
+  muteDivider: {
+    width: 1,
+    height: 14,
+    backgroundColor: "rgba(255,255,255,0.3)",
+    marginHorizontal: 8,
+  },
+  inlineMuteButton: {
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  infoOverlay: {
+    position: "absolute",
+    bottom: 24,
+    left: 20,
+    right: 20,
+    zIndex: 10,
+  },
+  infoContentContainer: {
+    flexDirection: "row",
+    alignItems: "flex-end",
+    justifyContent: "space-between",
+    marginBottom: 12,
+  },
+  textContentContainer: {
+    flex: 1,
+    paddingRight: 16,
+  },
+  upArrowContainer: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "rgba(30, 32, 36, 0.95)", // Solid dark charcoal/grey from image
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 6,
+    elevation: 3,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 3,
+  },
+  nameRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 4,
+  },
+  name: {
+    fontSize: 24,
+    fontWeight: "700",
+    color: "#FFF",
+    letterSpacing: -0.5,
+  },
+  verifiedIcon: {
+    marginLeft: 6,
+  },
+  onlineDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: "#00FF00",
+    borderWidth: 1,
+    borderColor: "rgba(0,0,0,0.5)",
+    marginLeft: 4,
+  },
+  locationText: {
+    fontSize: 14,
+    color: "rgba(255,255,255,0.8)",
+    fontWeight: "500",
+  },
+  tagsRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  tagPillContainer: {
+    borderRadius: 12,
+    overflow: "hidden",
+  },
+  tagPill: {
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.3)",
+    borderRadius: 12,
+  },
+  tagText: {
+    color: "#FFFFFF",
+    fontSize: 12,
+    fontWeight: "500",
+    textShadowColor: "rgba(0,0,0,0.8)",
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
+  },
+  shadowText: {
+    textShadowColor: "rgba(0,0,0,0.8)",
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 4,
+  },
 });

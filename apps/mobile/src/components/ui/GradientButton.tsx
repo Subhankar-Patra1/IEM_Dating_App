@@ -58,7 +58,7 @@ export const GradientButton: React.FC<GradientButtonProps> = ({
         {...props}
       >
         <LinearGradient
-          colors={disabled ? ['#A0AEC0', '#CBD5E0'] : gradientColors}
+          colors={disabled ? ['rgba(255, 255, 255, 0.05)', 'rgba(255, 255, 255, 0.1)'] : gradientColors}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 0 }}
           style={styles.gradient}
@@ -82,13 +82,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     elevation: 3, // Android shadow
-    shadowColor: '#000', // iOS shadow
+    shadowColor: colors.primary, // iOS shadow
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 5,
+    shadowOpacity: 0.25,
+    shadowRadius: 10,
   },
   text: {
-    color: colors.text.inverse,
+    color: colors.text.primary,
     fontSize: 18,
     fontWeight: 'bold',
     letterSpacing: 0.5,

@@ -6,7 +6,7 @@ export class MatchController {
   static async getPendingMatches(req: Request, res: Response, next: NextFunction) {
     try {
       const userId = (req as any).user.sub;
-      const matches = await MatchService.getPendingMatches(userId);
+      const matches = await MatchService.getMatches(userId);
       res.status(200).json(ApiResponse.success(matches));
     } catch (error) {
       next(error);

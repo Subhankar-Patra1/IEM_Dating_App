@@ -26,7 +26,8 @@ export const SwipeableCard: React.FC<SwipeableCardProps> = ({ profile }) => {
       <Image source={{ uri: profile.imageUrl }} style={styles.image} />
       
       <LinearGradient
-        colors={['transparent', 'rgba(0,0,0,0.8)']}
+        colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.8)']}
+        locations={[0.5, 1]}
         style={styles.gradient}
       />
       

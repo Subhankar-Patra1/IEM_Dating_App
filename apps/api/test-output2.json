@@ -1,0 +1,35 @@
+{
+  "id": "30288682-df49-490a-9b68-d778a3e92553",
+  "name": "Sayan",
+  "preferences": {
+    "bio": "heyyyyyy!",
+    "interests": [
+      "photography",
+      "90s_kid",
+      "maggi",
+      "among_us",
+      "festivals",
+      "music_bands",
+      "road_trips",
+      "twitter_x",
+      "cricket",
+      "action_movies",
+      "activism",
+      "trying_new_things"
+    ],
+    "lifestyle": {
+      "pets": "dog",
+      "drink": "not_for_me",
+      "smoke": "non_smoker",
+      "exercise": "every_day"
+    },
+    "personality": {
+      "education": "bachelor",
+      "star_sign": "aquarius",
+      "personality": "ambivert",
+      "communication": "whatsapp_all_day",
+      "love_reception": "thoughtful_gestures"
+    }
+  },
+  "seeking": "Long-term, but short-term OK"
+}
