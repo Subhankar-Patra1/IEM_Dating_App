@@ -34,6 +34,10 @@ npx expo start --dev-client
 ```
 `--dev-client` is required. This project uses `expo-dev-client`, **not Expo Go**.
 
+> **First time on a new phone?** Run `npx expo run:android` *instead* of this -
+> it builds and installs the app **and** starts Metro. Do not run both, or they
+> fight over port 8081.
+
 ### Before all of the above
 Start **Docker Desktop**. Redis runs as a container and starts itself.
 
