@@ -76,11 +76,27 @@ phone, you never pair again.
 
 #### Every session - connect
 
-Open **Wireless debugging** on the phone, read *IP address and port* off the
-main screen, then:
+```powershell
+cd E:\IEM_Dating_App\apps\mobile
+npm run connect
+```
+
+Finds the phone over mDNS and connects. The wireless port changes every time
+Wireless debugging is toggled or the phone reboots, and stale ports linger in
+adb's discovery list, so the script tries every advertised endpoint until one
+answers. No need to read the port off the phone.
+
+If auto-detection fails, pass the port from the phone's **main** Wireless
+debugging screen:
 
 ```powershell
-adb connect 192.168.3.186:36749
+npm run connect -- -Port 41987
+```
+
+Or do it by hand:
+
+```powershell
+adb connect 192.168.3.186:41987
 adb devices
 ```
 
@@ -88,12 +104,12 @@ Expected:
 
 ```
 List of devices attached
-192.168.3.186:36749   device
+192.168.3.186:41987   device
 ```
 
-> **The port changes** every time you toggle Wireless debugging or reboot the
-> phone. The IP changes when you rejoin Wi-Fi. Read both off the phone screen
-> before connecting.
+> `offline` or `actively refused` means the port is stale - the usual cause of
+> a failed connect. Re-run `npm run connect`, or toggle Wireless debugging off
+> and on and run it again.
 
 #### Disconnecting
 
