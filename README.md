@@ -71,11 +71,22 @@ Different network, or Wi-Fi client isolation (common on campus networks):
 npx expo start --dev-client --tunnel
 ```
 
-### First run only
-Builds and installs the dev APK. Not needed afterwards.
+### Building the dev APK
 ```powershell
 npx expo run:android
 ```
+Runs a full native Gradle build, installs the APK on the connected device,
+and starts Metro. Slow (minutes), so it is **not** a daily command.
+
+Run it when:
+
+- Setting up a new phone, or the app was uninstalled
+- You add a library containing native code
+- You edit `app.json` plugins or permissions
+- You change `patches/react-native+0.81.5.patch`
+
+Editing JS/TSX **never** requires it - Metro hot-reloads those. For normal
+day-to-day work use `npx expo start --dev-client` instead.
 
 ---
 
