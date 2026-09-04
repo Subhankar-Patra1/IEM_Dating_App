@@ -15,7 +15,7 @@ import {
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useDispatch } from "react-redux";
-import { setCredentials } from "../../../store/authSlice";
+import { setCredentials, updateUser } from "../../../store/authSlice";
 import { api } from "../../../services/api";
 
 const { width } = Dimensions.get("window");
@@ -520,7 +520,8 @@ export const InterestsScreen = () => {
         seeking,
         department,
         degree,
-        year
+        year,
+        yearOfStudy
       } = route.params || {};
 
       const finalData: any = {
@@ -542,10 +543,15 @@ export const InterestsScreen = () => {
       if (department !== undefined) finalData.department = department;
       if (degree !== undefined) finalData.degree = degree;
       if (year !== undefined) finalData.year = year;
+      if (yearOfStudy !== undefined) finalData.yearOfStudy = yearOfStudy;
 
       console.log("Saving interests:", JSON.stringify(finalData));
 
-      await api.put("/profile", finalData);
+      const response = await api.put("/profile", finalData);
+
+      if (response.data?.success) {
+        dispatch(updateUser(response.data.data));
+      }
 
       /* 
       dispatch(

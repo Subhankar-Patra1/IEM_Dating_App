@@ -3,12 +3,15 @@ import { store } from '../store';
 
 import { Platform } from 'react-native';
 
-// Use 10.123.101.109 for Android (physical device or emulator on LAN), localhost for iOS simulator/web
-const API_URL = Platform.OS === 'android' ? 'http://10.123.101.109:3000/api/v1' : 'http://localhost:3000/api/v1';
+// Use Ngrok Tunnel URL for stable development networking
+const API_URL = 'https://injunctive-efrain-undecomposed.ngrok-free.dev/api/v1';
 
 export const api = axios.create({
   baseURL: API_URL,
   timeout: 30000, // 30s — allows for Neon DB cold start (auto-resume from suspend)
+  headers: {
+    'ngrok-skip-browser-warning': 'true',
+  },
 });
 
 api.interceptors.request.use(

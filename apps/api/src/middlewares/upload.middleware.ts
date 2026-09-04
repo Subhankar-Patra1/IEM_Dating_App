@@ -5,6 +5,36 @@ import { Request } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import path from 'path';
 
+const CDN_DOMAIN = process.env.CDN_URL || '';
+
+// Transform S3 URLs to CDN URLs
+export const transformToCdnUrl = (s3Url: string): string => {
+  // If CDN is disabled or not configured, return original S3 URL
+  if (!CDN_DOMAIN || CDN_DOMAIN === '' || CDN_DOMAIN.includes('todo')) {
+    return s3Url;
+  }
+
+  if (!s3Url) return s3Url;
+
+  try {
+    const urlObj = new URL(s3Url);
+    // Only replace if it's our S3 bucket domain and NOT already the CDN domain
+    if (
+      urlObj.hostname.includes('s3') && 
+      urlObj.hostname.includes('amazonaws.com') &&
+      !s3Url.includes(CDN_DOMAIN)
+    ) {
+      // Logic check: only transform if we actually want CDN enabled
+      // FOR NOW: Let's log it to debug
+      // console.log(`[CDN] Transforming ${urlObj.hostname} to ${CDN_DOMAIN}`);
+      return `${CDN_DOMAIN}${urlObj.pathname}`;
+    }
+    return s3Url;
+  } catch (e) {
+    return s3Url;
+  }
+};
+
 export const s3Client = new S3Client({
   region: process.env.AWS_REGION || 'us-east-1',
   credentials: {

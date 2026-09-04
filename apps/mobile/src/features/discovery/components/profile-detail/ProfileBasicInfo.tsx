@@ -1,6 +1,6 @@
 import React, { useRef, useEffect } from 'react';
 import { View, Text, StyleSheet, Animated, Easing } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 
 interface ProfileBasicInfoProps {
@@ -57,82 +57,144 @@ export const ProfileBasicInfo: React.FC<ProfileBasicInfoProps> = ({ user }) => {
 
   return (
     <View style={styles.container}>
-      {/* Top Row: Name, Age, Verification, Online, Match % */}
-      <View style={styles.topRow}>
-        <View style={styles.nameContainer}>
-          <Text style={styles.nameText}>{user.name?.split(' ')[0]}{age ? `, ${age}` : ''}</Text>
-          {user.isVerified && <Ionicons name="checkmark-circle" size={26} color="#26de81" style={styles.iconMargin} />}
-          <Animated.View style={[styles.onlineDot, { opacity: dotOpacity }]} />
+      {/* Looking For Section */}
+      {user.seeking && (
+        <View style={styles.intentHorizontalContainer}>
+          <View style={styles.intentHeaderRow}>
+            <Ionicons name="search" size={16} color="#8e8e93" />
+            <Text style={styles.horizontalSectionTitle}>Looking for</Text>
+          </View>
+          <View style={styles.intentValueRow}>
+            <Text style={styles.intentValueText}>💕 {user.seeking}</Text>
+          </View>
         </View>
-        <View style={styles.rightBadgesContainer}>
-          <Animated.View style={[styles.matchBadge, { transform: [{ scale: pillScale }] }]}>
-            <LinearGradient
-              colors={['#ff5c5c', '#ff9f43']}
-              style={[StyleSheet.absoluteFill, { borderRadius: 16 }]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-            />
-            <Text style={styles.matchText}>
-              Match {matchPercentage}%
-            </Text>
-          </Animated.View>
-        </View>
-      </View>
+      )}
 
-      {/* Online Status */}
-      <View style={styles.activeStatusContainer}>
-        <Ionicons name="time-outline" size={14} color="rgba(255,255,255,0.6)" />
-        <Text style={styles.activeText}>{user.lastActiveAt ? 'Active recently' : 'Active recently'}</Text>
-      </View>
-
-      {/* Structured Info Row (Editorial Cards) */}
-      <View style={styles.infoCard}>
-        {user.showGender && user.gender && (
-          <View style={styles.infoRow}>
-            <View style={[styles.iconTile, { backgroundColor: 'rgba(38, 222, 129, 0.15)' }]}>
-              <Ionicons name="person" size={14} color="#26de81"/>
-            </View>
-            <Text style={styles.infoText}>{user.gender}</Text>
-          </View>
-        )}
-        <View style={styles.infoRow}>
-          <View style={[styles.iconTile, { backgroundColor: 'rgba(69, 170, 242, 0.15)' }]}>
-            <Ionicons name="business" size={14} color="#45aaf2"/>
-          </View>
-          <Text style={styles.infoText}>{college}</Text>
+      {/* Structured Info Section (Rows) */}
+      <View style={styles.section}>
+        <View style={styles.sectionHeader}>
+          <Ionicons name="person-circle" size={28} color="#8e8e93" />
+          <Text style={styles.sectionTitleHeader}>Basics</Text>
         </View>
-        {user.department && (
-          <View style={styles.infoRow}>
-            <View style={[styles.iconTile, { backgroundColor: 'rgba(69, 170, 242, 0.15)' }]}>
-              <Ionicons name="laptop-outline" size={14} color="#45aaf2"/>
+        <View style={styles.infoRowsContainer}>
+          {user.showGender && user.gender && (
+            <View style={styles.lifestyleRow}>
+              <View style={styles.rowHeader}>
+                <Text style={styles.rowLabelText}>Gender</Text>
+              </View>
+              <View style={styles.rowValueContainer}>
+                <Ionicons name="person" size={18} color="#8e8e93" style={styles.rowIcon} />
+                <Text style={styles.rowValueText}>{user.gender}</Text>
+              </View>
             </View>
-            <Text style={styles.infoText}>{user.department}</Text>
-          </View>
-        )}
-        {(user.year) && (
-          <View style={styles.infoRow}>
-            <View style={[styles.iconTile, { backgroundColor: 'rgba(255, 159, 67, 0.15)' }]}>
-              <Ionicons name="calendar-outline" size={14} color="#ff9f43"/>
+          )}
+
+          {age !== '' && (
+            <View style={[styles.lifestyleRow, user.showGender && user.gender && styles.rowBorder]}>
+              <View style={styles.rowHeader}>
+                <Text style={styles.rowLabelText}>Age</Text>
+              </View>
+              <View style={styles.rowValueContainer}>
+                <Ionicons name="calendar" size={18} color="#8e8e93" style={styles.rowIcon} />
+                <Text style={styles.rowValueText}>{age} years old</Text>
+              </View>
             </View>
-            <Text style={styles.infoText}>{user.year ? `Class of ${user.year}` : ''}</Text>
-          </View>
-        )}
-        {user.isHosteller !== null && user.isHosteller !== undefined && (
-          <View style={styles.infoRow}>
-            <View style={[styles.iconTile, { backgroundColor: 'rgba(38, 222, 129, 0.15)' }]}>
-              <Ionicons name="book-outline" size={14} color="#26de81"/>
+          )}
+
+          <View style={[styles.lifestyleRow, user.showGender && styles.rowBorder]}>
+            <View style={styles.rowHeader}>
+              <Text style={styles.rowLabelText}>College</Text>
             </View>
-            <Text style={styles.infoText}>{user.isHosteller ? 'Hosteller' : 'Day Scholar'}</Text>
-          </View>
-        )}
-        {user.degree && (
-          <View style={styles.infoRow}>
-            <View style={[styles.iconTile, { backgroundColor: 'rgba(69, 170, 242, 0.15)' }]}>
-              <Ionicons name="school" size={14} color="#45aaf2"/>
+            <View style={styles.rowValueContainer}>
+              <Ionicons name="business" size={18} color="#8e8e93" style={styles.rowIcon} />
+              <Text style={styles.rowValueText}>{college}</Text>
             </View>
-            <Text style={styles.infoText}>{user.degree || 'Bachelor'}</Text>
           </View>
-        )}
+
+          {user.department && (
+            <View style={[styles.lifestyleRow, styles.rowBorder]}>
+              <View style={styles.rowHeader}>
+                <Text style={styles.rowLabelText}>Stream</Text>
+              </View>
+              <View style={styles.rowValueContainer}>
+                <Ionicons name="laptop-outline" size={18} color="#8e8e93" style={styles.rowIcon} />
+                <Text style={styles.rowValueText}>{user.department}</Text>
+              </View>
+            </View>
+          )}
+
+          {user.yearOfStudy && (
+            <View style={[styles.lifestyleRow, styles.rowBorder]}>
+              <View style={styles.rowHeader}>
+                <Text style={styles.rowLabelText}>Year of Study</Text>
+              </View>
+              <View style={styles.rowValueContainer}>
+                <Ionicons name="school-outline" size={18} color="#8e8e93" style={styles.rowIcon} />
+                <Text style={styles.rowValueText}>{user.yearOfStudy}{user.yearOfStudy === 1 ? 'st' : user.yearOfStudy === 2 ? 'nd' : user.yearOfStudy === 3 ? 'rd' : 'th'} Year</Text>
+              </View>
+            </View>
+          )}
+
+          {user.year && (
+            <View style={[styles.lifestyleRow, styles.rowBorder]}>
+              <View style={styles.rowHeader}>
+                <Text style={styles.rowLabelText}>Batch</Text>
+              </View>
+              <View style={styles.rowValueContainer}>
+                <Ionicons name="calendar-outline" size={18} color="#8e8e93" style={styles.rowIcon} />
+                <Text style={styles.rowValueText}>Class of {user.year}</Text>
+              </View>
+            </View>
+          )}
+
+          {user.isHosteller !== null && user.isHosteller !== undefined && (
+            <View style={[styles.lifestyleRow, styles.rowBorder]}>
+              <View style={styles.rowHeader}>
+                <Text style={styles.rowLabelText}>Living</Text>
+              </View>
+              <View style={styles.rowValueContainer}>
+                <Ionicons name="home-outline" size={18} color="#8e8e93" style={styles.rowIcon} />
+                <Text style={styles.rowValueText}>{user.isHosteller ? 'Hosteller' : 'Day Scholar'}</Text>
+              </View>
+            </View>
+          )}
+
+          {user.degree && (
+            <View style={[styles.lifestyleRow, styles.rowBorder]}>
+              <View style={styles.rowHeader}>
+                <Text style={styles.rowLabelText}>Degree</Text>
+              </View>
+              <View style={styles.rowValueContainer}>
+                <Ionicons name="school" size={18} color="#8e8e93" style={styles.rowIcon} />
+                <Text style={styles.rowValueText}>{user.degree}</Text>
+              </View>
+            </View>
+          )}
+
+          {user.attendanceMood && (
+            <View style={[styles.lifestyleRow, styles.rowBorder]}>
+              <View style={styles.rowHeader}>
+                <Text style={styles.rowLabelText}>Attendance</Text>
+              </View>
+              <View style={styles.rowValueContainer}>
+                <Ionicons name="book" size={18} color="#8e8e93" style={styles.rowIcon} />
+                <Text style={styles.rowValueText}>{user.attendanceMood}</Text>
+              </View>
+            </View>
+          )}
+
+          {user.clubs && user.clubs.length > 0 && (
+            <View style={[styles.lifestyleRow, styles.rowBorder]}>
+              <View style={styles.rowHeader}>
+                <Text style={styles.rowLabelText}>Clubs</Text>
+              </View>
+              <View style={styles.rowValueContainer}>
+                <Ionicons name="people" size={18} color="#8e8e93" style={styles.rowIcon} />
+                <Text style={styles.rowValueText}>{user.clubs.join(', ')}</Text>
+              </View>
+            </View>
+          )}
+        </View>
       </View>
     </View>
   );
@@ -140,9 +202,9 @@ export const ProfileBasicInfo: React.FC<ProfileBasicInfoProps> = ({ user }) => {
 
 const styles = StyleSheet.create({
   container: {
-    paddingHorizontal: 20,
-    marginTop: -80,
-    paddingBottom: 24,
+    marginHorizontal: 2,
+    marginTop: 10,
+    paddingBottom: 8,
     zIndex: 10,
   },
   topRow: {
@@ -177,8 +239,23 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(0,0,0,0.5)',
     marginLeft: 6,
   },
+  verifiedBadgeContainer: {
+    marginLeft: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+    position: 'relative',
+    marginTop: 8, // Shift down to align with bottom of name text
+  },
+  verifiedBadgeBackground: {
+    position: 'absolute',
+    width: 16,
+    height: 16,
+    backgroundColor: '#FFF',
+    borderRadius: 8,
+    zIndex: -1,
+  },
   matchBadge: {
-    borderWidth: 0, // removed border, using gradient
+    borderWidth: 0,
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 16,
@@ -198,12 +275,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
   },
-  muteIcon: {
-    opacity: 0.9,
-    textShadowColor: 'rgba(0,0,0,0.8)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
-  },
   activeStatusContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -215,30 +286,86 @@ const styles = StyleSheet.create({
     marginLeft: 4,
     fontWeight: '600',
   },
-  infoCard: {
+  intentHorizontalContainer: {
     backgroundColor: '#13131a',
-    borderRadius: 24,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.07)',
+    borderRadius: 12,
     padding: 16,
-    gap: 12,
-    marginTop: 4,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.05)',
   },
-  infoRow: {
+  intentHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    marginBottom: 12,
+    gap: 8,
   },
-  iconTile: {
-    width: 28,
-    height: 28,
-    borderRadius: 12, // 12px border-radius square
-    justifyContent: 'center',
+  horizontalSectionTitle: {
+    fontFamily: 'DMSans_700Bold',
+    fontSize: 14,
+    color: '#8e8e93',
+  },
+  intentValueRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingLeft: 4,
+  },
+  intentValueText: {
+    fontFamily: 'DMSans_700Bold',
+    fontSize: 16,
+    color: '#FFF',
+  },
+  section: {
+    backgroundColor: '#13131a',
+    borderRadius: 12,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.07)',
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 8,
+    marginTop: 4,
+  },
+  sectionTitleHeader: {
+    fontFamily: 'DMSans_700Bold',
+    fontSize: 14,
+    color: '#8e8e93',
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+  },
+  infoRowsContainer: {
+    marginTop: 0,
+  },
+  lifestyleRow: {
+    paddingVertical: 14,
+  },
+  rowBorder: {
+    borderTopWidth: 1,
+    borderColor: 'rgba(255,255,255,0.05)',
+  },
+  rowHeader: {
+    marginBottom: 6,
+  },
+  rowLabelText: {
+    fontFamily: 'DMSans_500Medium',
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.8)',
+  },
+  rowValueContainer: {
+    flexDirection: 'row',
     alignItems: 'center',
   },
-  infoText: {
-    fontFamily: 'DMSans_500Medium',
-    fontSize: 15,
-    color: 'rgba(255,255,255,0.9)',
-  }
+  rowIcon: {
+    marginRight: 10,
+  },
+  rowValueText: {
+    fontFamily: 'DMSans_700Bold',
+    fontSize: 16,
+    color: '#FFF',
+    flex: 1,
+  },
 });

@@ -11,6 +11,7 @@ import { Syne_800ExtraBold } from '@expo-google-fonts/syne';
 import { DMSans_400Regular, DMSans_500Medium, DMSans_700Bold } from '@expo-google-fonts/dm-sans';
 
 import { KeyboardProvider } from 'react-native-keyboard-controller';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 const queryClient = new QueryClient();
 
@@ -30,14 +31,16 @@ export default function App() {
   }
 
   return (
-    <KeyboardProvider>
-      <Provider store={store}>
-        <PersistGate loading={null} persistor={persistor}>
-          <QueryClientProvider client={queryClient}>
-            <RootNavigator />
-          </QueryClientProvider>
-        </PersistGate>
-      </Provider>
-    </KeyboardProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <KeyboardProvider>
+        <Provider store={store}>
+          <PersistGate loading={null} persistor={persistor}>
+            <QueryClientProvider client={queryClient}>
+              <RootNavigator />
+            </QueryClientProvider>
+          </PersistGate>
+        </Provider>
+      </KeyboardProvider>
+    </GestureHandlerRootView>
   );
 }

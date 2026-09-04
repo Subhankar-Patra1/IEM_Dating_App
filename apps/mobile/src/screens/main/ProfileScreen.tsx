@@ -257,7 +257,10 @@ export const ProfileScreen = () => {
         {/* Photos Carousel */}
         {profile.photos && profile.photos.length > 0 && (
           <View style={styles.carouselContainer}>
-            <Text style={styles.sectionHeaderCarousel}>My Photos</Text>
+            <View style={styles.carouselHeader}>
+              <Ionicons name="images-outline" size={18} color={colors.primary} />
+              <Text style={styles.sectionHeaderCarousel}>My Photos</Text>
+            </View>
             <ScrollView 
               horizontal 
               showsHorizontalScrollIndicator={false}
@@ -523,12 +526,17 @@ const styles = StyleSheet.create({
   carouselContainer: {
     marginBottom: 8,
   },
+  carouselHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginLeft: 20,
+    marginBottom: 16,
+  },
   sectionHeaderCarousel: {
     fontSize: 16,
     fontWeight: '700',
     color: colors.text.primary,
-    marginLeft: 20,
-    marginBottom: 16,
   },
   carouselContent: {
     paddingHorizontal: 20,

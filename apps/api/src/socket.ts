@@ -13,7 +13,9 @@ export const getIO = () => ioInstance;
 
 export const setupSocket = (httpServer: HttpServer) => {
   const io = new Server(httpServer, {
-    cors: { origin: process.env.CORS_ORIGIN || '*' }
+    cors: { origin: process.env.CORS_ORIGIN || '*' },
+    pingTimeout: 5000,
+    pingInterval: 10000,
   });
 
   ioInstance = io;
@@ -73,14 +75,29 @@ export const setupSocket = (httpServer: HttpServer) => {
     });
 
     // Send message via socket — saves to DB and broadcasts to the match room
-    socket.on('send_message', async (data: { matchId: string; content: string }, callback?: (response: any) => void) => {
+    socket.on('send_message', async (data: { matchId: string; content: string; mediaKey?: string; mediaKeys?: string[] }, callback?: (response: any) => void) => {
       try {
         if (!userId) throw new Error('Not authenticated');
 
-        const message = await ChatService.sendMessage(userId, data.matchId, data.content);
+        const message = await ChatService.sendMessage(userId, data.matchId, data.content, data.mediaKey, data.mediaKeys || []);
 
         // Broadcast the message to everyone in the match room (including sender)
         io.to(data.matchId).emit('new_message', message);
+
+        // TRIGGER PUSH NOTIFICATION ASYNC
+        const matchInfo = await prisma.match.findUnique({
+          where: { id: data.matchId },
+          select: { user1Id: true, user2Id: true }
+        });
+
+        if (matchInfo) {
+           const recipientId = matchInfo.user1Id === userId ? matchInfo.user2Id : matchInfo.user1Id;
+           const contentPreview = data.content || (data.mediaKey || (data.mediaKeys && data.mediaKeys.length > 0) ? '📷 Sent a photo' : 'New message');
+           import('./services/notification.service').then(({ NotificationService }) => {
+              NotificationService.sendMessageNotification(recipientId, data.matchId, (message as any).sender.name, contentPreview)
+                .catch(err => logger.error('Error sending push notification', err));
+           });
+        }
 
         // Acknowledge to the sender
         if (callback) callback({ success: true, message });

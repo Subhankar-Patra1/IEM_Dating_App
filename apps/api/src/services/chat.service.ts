@@ -41,6 +41,12 @@ export class ChatService {
           },
         },
         messages: {
+          where: {
+            isDeleted: false,
+            NOT: {
+              hiddenBy: { has: userId },
+            } as any,
+          } as any,
           orderBy: { sentAt: 'desc' },
           take: 1,
           select: {
@@ -49,7 +55,13 @@ export class ChatService {
             senderId: true,
             sentAt: true,
             readAt: true,
+            photoUrl: true,
           },
+        },
+        chatSessions: {
+          orderBy: { lastMessageAt: 'desc' },
+          take: 1,
+          select: { lastMessageAt: true },
         },
       },
       orderBy: { createdAt: 'desc' },
@@ -75,32 +87,47 @@ export class ChatService {
               senderId: lastMessage.senderId,
               sentAt: lastMessage.sentAt,
               isRead: !!lastMessage.readAt,
+              mediaKey: (lastMessage as any).photoUrl,
             }
           : null,
         createdAt: match.createdAt,
       };
     });
 
-    // Sort by last message time (most recent first), fallback to match creation
+    // Sort by last message time (using ChatSession), fallback to match creation
     conversations.sort((a, b) => {
-      const aTime = a.lastMessage?.sentAt?.getTime() || a.createdAt.getTime();
-      const bTime = b.lastMessage?.sentAt?.getTime() || b.createdAt.getTime();
+      const aMatch = matches.find(m => m.id === a.matchId);
+      const bMatch = matches.find(m => m.id === b.matchId);
+      const aTime = aMatch?.chatSessions?.[0]?.lastMessageAt?.getTime() || a.lastMessage?.sentAt?.getTime() || a.createdAt.getTime();
+      const bTime = bMatch?.chatSessions?.[0]?.lastMessageAt?.getTime() || b.lastMessage?.sentAt?.getTime() || b.createdAt.getTime();
       return bTime - aTime;
     });
 
-    // Add unread counts in a separate query for accuracy
-    const conversationsWithUnread = await Promise.all(
-      conversations.map(async (conv) => {
-        const unreadCount = await prisma.message.count({
-          where: {
-            matchId: conv.matchId,
-            senderId: { not: userId },
-            readAt: null,
-          },
-        });
-        return { ...conv, unreadCount };
-      })
-    );
+    // Add unread counts in a separate query for accuracy (N+1 query issue fixed)
+    const matchIds = conversations.map(c => c.matchId);
+    let unreadMap = new Map<string, number>();
+
+    if (matchIds.length > 0) {
+      const unreadCounts = await prisma.message.groupBy({
+        by: ['matchId'],
+        where: {
+          matchId: { in: matchIds },
+          senderId: { not: userId },
+          readAt: null,
+          isDeleted: false,
+          NOT: {
+            hiddenBy: { has: userId },
+          } as any,
+        } as any,
+        _count: true,
+      });
+      unreadCounts.forEach(item => unreadMap.set(item.matchId, item._count));
+    }
+
+    const conversationsWithUnread = conversations.map((conv) => ({
+      ...conv,
+      unreadCount: unreadMap.get(conv.matchId) || 0
+    }));
 
     return conversationsWithUnread;
   }
@@ -109,15 +136,18 @@ export class ChatService {
    * Get paginated messages for a match. Cursor-based pagination (newest first).
    * If `since` is provided, fetches only messages newer than that timestamp (for incremental sync).
    */
-  static async getMessages(matchId: string, cursor?: string, limit: number = 30, since?: string) {
+  static async getMessages(matchId: string, userId: string, cursor?: string, limit: number = 30, since?: string) {
     // Incremental sync: fetch only new messages since a timestamp
     if (since) {
       const newMessages = await prisma.message.findMany({
         where: {
           matchId,
           isDeleted: false,
+          NOT: {
+            hiddenBy: { has: userId },
+          } as any,
           sentAt: { gt: new Date(since) },
-        },
+        } as any,
         orderBy: { sentAt: 'asc' },
         select: {
           id: true,
@@ -126,14 +156,22 @@ export class ChatService {
           sentAt: true,
           readAt: true,
           photoUrl: true,
-        },
+          mediaKeys: true,
+          matchId: true,
+        } as any,
       });
       return { messages: newMessages, nextCursor: null, hasMore: false };
     }
 
     // Full pagination fetch
     const messages = await prisma.message.findMany({
-      where: { matchId, isDeleted: false },
+      where: { 
+        matchId, 
+        isDeleted: false,
+        NOT: {
+          hiddenBy: { has: userId },
+        } as any,
+      } as any,
       orderBy: { sentAt: 'desc' },
       take: limit + 1,
       ...(cursor
@@ -149,12 +187,21 @@ export class ChatService {
         sentAt: true,
         readAt: true,
         photoUrl: true,
-      },
+        mediaKeys: true,
+        matchId: true,
+      } as any,
     });
 
-    const hasMore = messages.length > limit;
-    const data = hasMore ? messages.slice(0, limit) : messages;
-    const nextCursor = hasMore ? data[data.length - 1].id : null;
+    const mappedMessages = messages.map(m => ({
+      ...m,
+      mediaKey: (m as any).photoUrl,
+      mediaKeys: (m as any).mediaKeys || [],
+      photoUrl: undefined,
+    }));
+
+    const hasMore = mappedMessages.length > limit;
+    const data = hasMore ? mappedMessages.slice(0, limit) : mappedMessages;
+    const nextCursor = hasMore ? (data[data.length - 1] as any).id : null;
 
     return {
       messages: data,
@@ -166,7 +213,15 @@ export class ChatService {
   /**
    * Save a new message and return it with sender info.
    */
-  static async sendMessage(senderId: string, matchId: string, content: string) {
+  static async sendMessage(senderId: string, matchId: string, content: string, photoUrl?: string, mediaKeys: string[] = []) {
+    // Validation
+    if (!content?.trim() && (!mediaKeys || mediaKeys.length === 0)) {
+      throw new Error('Message content or media is required');
+    }
+    
+    // Sanitize content to prevent XSS
+    const sanitizedContent = content?.trim()?.substring(0, 5000) || '';
+
     // Verify the sender is part of this match
     const match = await prisma.match.findFirst({
       where: {
@@ -183,12 +238,15 @@ export class ChatService {
       throw new Error('Match not found or you are not part of this match');
     }
 
+    // Create message with sanitized data
     const message = await prisma.message.create({
       data: {
         senderId,
         matchId,
-        content,
-      },
+        content: sanitizedContent,
+        photoUrl,
+        mediaKeys,
+      } as any,
       select: {
         id: true,
         content: true,
@@ -202,12 +260,41 @@ export class ChatService {
             name: true,
           },
         },
-      },
+        photoUrl: true,
+        mediaKeys: true,
+      } as any,
     });
+
+    const mappedMessage = {
+      ...message,
+      mediaKey: (message as any).photoUrl,
+      mediaKeys: (message as any).mediaKeys || [],
+      photoUrl: undefined,
+    };
+
+    // Use upsert to avoid race conditions in ChatSession update
+    // First try to find existing session
+    const existingSession = await prisma.chatSession.findFirst({
+      where: { matchId },
+    });
+    
+    if (existingSession) {
+      // Update existing
+      await prisma.chatSession.update({
+        where: { id: existingSession.id },
+        data: { lastMessageAt: new Date() },
+      });
+    } else {
+      // Create new
+      await prisma.chatSession.create({
+        data: { matchId, lastMessageAt: new Date() },
+      });
+    }
+
     // Track message metrics for algorithm (async, non-blocking)
     this.trackMessageMetrics(senderId, matchId).catch(() => {});
 
-    return message;
+    return mappedMessage;
   }
 
   /**
@@ -244,5 +331,60 @@ export class ChatService {
       console.error('[ChatService] markAsRead error:', error);
       return { markedCount: 0 };
     }
+  }
+
+  /**
+   * Soft delete a message. Assumes validation is done.
+   */
+  static async deleteMessage(messageId: string, userId: string, mode: 'me' | 'everyone' = 'everyone') {
+    const msg = await prisma.message.findUnique({ where: { id: messageId } });
+    if (!msg) {
+      throw new Error('Message not found');
+    }
+
+    if (mode === 'everyone') {
+      if (msg.senderId !== userId) {
+        throw new Error('Not authorized to delete this message for everyone');
+      }
+      return await prisma.message.update({
+        where: { id: messageId },
+        data: { isDeleted: true },
+      });
+    } else {
+      // mode === 'me'
+      // Add userId to hiddenBy array if not already there
+      const currentHiddenBy = (msg as any).hiddenBy || [];
+      if (!currentHiddenBy.includes(userId)) {
+        return await prisma.message.update({
+          where: { id: messageId },
+          data: {
+            hiddenBy: {
+              push: userId,
+            },
+          } as any,
+        });
+      }
+      return msg;
+    }
+  }
+
+  /**
+   * Edit a message text.
+   */
+  static async updateMessage(messageId: string, userId: string, content: string) {
+    const msg = await prisma.message.findUnique({ where: { id: messageId } });
+    if (!msg || msg.senderId !== userId) {
+      throw new Error('Not authorized to edit this message');
+    }
+
+    if (msg.isDeleted) {
+      throw new Error('Cannot edit a deleted message');
+    }
+
+    const result = await prisma.message.update({
+      where: { id: messageId },
+      data: { content },
+    });
+    return result;
   }
 }

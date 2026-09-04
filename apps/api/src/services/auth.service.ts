@@ -100,6 +100,14 @@ export class AuthService {
       }
     } else {
       console.log(`[DEBUG SERVICE]: Existing user found with ID: ${user.id}`);
+      // Ensure phone-verified users always have isVerified = true
+      if (!user.isVerified) {
+        user = await prisma.user.update({
+          where: { id: user.id },
+          data: { isVerified: true },
+        });
+        console.log(`[DEBUG SERVICE]: Updated isVerified to true for user: ${user.id}`);
+      }
     }
 
     const jti = randomUUID();

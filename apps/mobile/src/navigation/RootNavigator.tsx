@@ -29,6 +29,8 @@ import { EditPersonalityScreen } from '../screens/main/edit/EditPersonalityScree
 import { EditInterestsScreen } from '../screens/main/edit/EditInterestsScreen';
 import { EditBioScreen } from '../screens/main/edit/EditBioScreen';
 import { EditHeightScreen } from '../screens/main/edit/EditHeightScreen';
+import { EditResidencyScreen } from '../screens/main/edit/EditResidencyScreen';
+import { EditYearScreen } from '../screens/main/edit/EditYearScreen';
 
 const linking = {
   prefixes: ['http://localhost:8081', 'iemdating://'],
@@ -82,6 +84,8 @@ const linking = {
       EditInterests: 'EditInterests',
       EditBio: 'EditBio',
       EditHeight: 'EditHeight',
+      EditResidency: 'EditResidency',
+      EditYear: 'EditYear',
       Settings: 'Settings',
     }
   }
@@ -117,6 +121,8 @@ export const RootNavigator = () => {
         <Stack.Screen name="EditInterests" component={EditInterestsScreen} options={{ animation: 'slide_from_right' }} />
         <Stack.Screen name="EditBio" component={EditBioScreen} options={{ animation: 'slide_from_right' }} />
         <Stack.Screen name="EditHeight" component={EditHeightScreen} options={{ animation: 'slide_from_right' }} />
+        <Stack.Screen name="EditResidency" component={EditResidencyScreen} options={{ animation: 'slide_from_right' }} />
+        <Stack.Screen name="EditYear" component={EditYearScreen} options={{ animation: 'slide_from_right' }} />
         <Stack.Screen name="Settings" component={SettingsScreen} />
       </Stack.Navigator>
     </NavigationContainer>

@@ -452,12 +452,12 @@ export const SwipeCard: React.FC<SwipeCardProps> = ({
                   <Text style={[styles.name, styles.shadowText]}>
                     {user.name.split(" ")[0]}, {user.year.replace(" Year", "")}
                   </Text>
-                  <Ionicons
-                    name="checkmark-circle"
-                    size={22}
-                    color="#2196F3"
-                    style={styles.verifiedIcon}
-                  />
+                  {(user as any).isVerified || (user as any).phone ? (
+                    <View style={styles.verifiedBadgeContainer}>
+                      <View style={styles.verifiedBadgeBackground} />
+                      <MaterialIcons name="verified" size={20} color="#3b82f6" />
+                    </View>
+                  ) : null}
                   <View style={styles.onlineDot} />
                 </View>
 
@@ -649,8 +649,20 @@ const styles = StyleSheet.create({
     color: "#FFF",
     letterSpacing: -0.5,
   },
-  verifiedIcon: {
+  verifiedBadgeContainer: {
     marginLeft: 6,
+    justifyContent: "center",
+    alignItems: "center",
+    position: "relative",
+    marginTop: 2, // Slight downward shift for vertical alignment
+  },
+  verifiedBadgeBackground: {
+    position: "absolute",
+    width: 12,
+    height: 12,
+    backgroundColor: "#FFF",
+    borderRadius: 6,
+    zIndex: -1,
   },
   onlineDot: {
     width: 10,

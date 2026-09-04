@@ -8,6 +8,8 @@ import fs from 'fs';
 import path from 'path';
 import os from 'os';
 import { Readable } from 'stream';
+import { transformToCdnUrl } from '../middlewares/upload.middleware';
+import { MediaCacheService } from './mediaCache.service';
 
 // Set ffmpeg binary path
 if (ffmpegStatic) {
@@ -100,7 +102,8 @@ export class VideoPreviewService {
 
       await s3Client.send(putCommand);
 
-      const previewUrl = `https://${BUCKET}.s3.${REGION}.amazonaws.com/${previewKey}`;
+      const rawPreviewUrl = `https://${BUCKET}.s3.${REGION}.amazonaws.com/${previewKey}`;
+      const previewUrl = transformToCdnUrl(rawPreviewUrl);
       console.log(`[VideoPreview] Preview uploaded to: ${previewUrl}`);
 
       // 4. Update user's videoPreviewUrl in database
@@ -108,6 +111,10 @@ export class VideoPreviewService {
         where: { id: userId },
         data: { videoPreviewUrl: previewUrl },
       });
+
+      // 5. Invalidate existing cache and cache new preview URL
+      await MediaCacheService.invalidateCache(userId);
+      await MediaCacheService.cacheUserMedia(userId);
 
       console.log(`[VideoPreview] Preview generation complete for user: ${userId}`);
     } catch (error) {

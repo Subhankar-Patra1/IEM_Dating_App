@@ -1,8 +1,8 @@
-import React, { useState, useMemo, useRef, useEffect } from 'react';
-import { View, StyleSheet, Dimensions, ActivityIndicator, Text, TouchableOpacity, ScrollView, Image } from 'react-native';
+import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
+import { View, StyleSheet, Dimensions, ActivityIndicator, Text, TouchableOpacity, ScrollView, Image, Animated, Pressable } from 'react-native';
 import { Video, ResizeMode } from 'expo-av';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { colors } from '../../../../core/theme/colors';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
@@ -18,7 +18,9 @@ export const ProfileMediaGallery: React.FC<ProfileMediaGalleryProps> = ({ user, 
   const [isMuted, setIsMuted] = useState(true);
   const [mediaReady, setMediaReady] = useState<Record<number, boolean>>({});
   const [mediaError, setMediaError] = useState<Record<number, boolean>>({});
+  const scrollX = useRef(new Animated.Value(0)).current;
   const videoRef = useRef<any>(null);
+  const scrollViewRef = useRef<ScrollView>(null);
 
   const mediaItems = useMemo(() => {
     const items: { type: 'video' | 'image', uri: string, previewUri?: string }[] = [];
@@ -41,6 +43,25 @@ export const ProfileMediaGallery: React.FC<ProfileMediaGalleryProps> = ({ user, 
     }
   }, [isVisible]);
 
+  const goToIndex = useCallback((index: number) => {
+    if (index < 0 || index >= mediaItems.length) return;
+    scrollViewRef.current?.scrollTo({ x: index * SCREEN_WIDTH, animated: true });
+    setCurrentIndex(index);
+    scrollX.setValue(index * SCREEN_WIDTH);
+  }, [mediaItems.length, scrollX]);
+
+  const handleTapLeft = useCallback(() => {
+    if (currentIndex > 0) {
+      goToIndex(currentIndex - 1);
+    }
+  }, [currentIndex, goToIndex]);
+
+  const handleTapRight = useCallback(() => {
+    if (currentIndex < mediaItems.length - 1) {
+      goToIndex(currentIndex + 1);
+    }
+  }, [currentIndex, mediaItems.length, goToIndex]);
+
   const handleScroll = (event: any) => {
     const slideSize = event.nativeEvent.layoutMeasurement.width;
     const index = event.nativeEvent.contentOffset.x / slideSize;
@@ -48,6 +69,8 @@ export const ProfileMediaGallery: React.FC<ProfileMediaGalleryProps> = ({ user, 
     if (roundIndex !== currentIndex) {
       setCurrentIndex(roundIndex);
     }
+    // Track scroll position for smooth indicator animation
+    scrollX.setValue(event.nativeEvent.contentOffset.x);
   };
 
   const showFallback = mediaItems.length === 0;
@@ -66,13 +89,17 @@ export const ProfileMediaGallery: React.FC<ProfileMediaGalleryProps> = ({ user, 
   }
 
   return (
-    <View style={[styles.container, { height: SCREEN_HEIGHT * 0.45 }]}>
+    <View style={[styles.container, { height: SCREEN_HEIGHT * 0.50 }]}>
+      {/* Main Media Display */}
       <ScrollView
+        ref={scrollViewRef}
         horizontal
         pagingEnabled
         showsHorizontalScrollIndicator={false}
         onMomentumScrollEnd={handleScroll}
+        scrollEventThrottle={16}
         style={{ flex: 1 }}
+        contentContainerStyle={{ paddingBottom: 0 }}
       >
         {mediaItems.map((item, idx) => {
           const isActive = idx === currentIndex;
@@ -110,47 +137,112 @@ export const ProfileMediaGallery: React.FC<ProfileMediaGalleryProps> = ({ user, 
                   onError={() => setMediaError(prev => ({...prev, [idx]: true}))}
                 />
               )}
+
+              {/* Mute/Unmute Toggle for Video */}
+              {item.type === 'video' && isActive && (
+                <TouchableOpacity
+                  style={styles.muteButton}
+                  onPress={() => setIsMuted(prev => !prev)}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons 
+                    name={isMuted ? "volume-mute" : "volume-high"} 
+                    size={20} 
+                    color="#FFF" 
+                  />
+                </TouchableOpacity>
+              )}
+
+              {/* Tap Zones inside each item allows ScrollView to still handle swipes */}
+              {mediaItems.length > 1 && (
+                <View style={styles.tapZoneContainer} pointerEvents="box-none">
+                  <Pressable
+                    style={styles.tapZoneLeft}
+                    onPress={handleTapLeft}
+                  />
+                  <Pressable
+                    style={styles.tapZoneRight}
+                    onPress={handleTapRight}
+                  />
+                </View>
+              )}
             </View>
           );
         })}
       </ScrollView>
 
-      {/* Media Indicators (Top) */}
+      {/* Top Bar: Indicators with Progress Animation */}
       {mediaItems.length > 1 && (
-        <View style={styles.indicatorContainer}>
-          {mediaItems.map((_, idx) => (
-            <View 
-              key={idx} 
-              style={[
-                styles.indicatorDot, 
-                idx === currentIndex ? styles.indicatorActive : styles.indicatorInactive
-              ]} 
-            />
-          ))}
+        <View style={styles.topBar}>
+          <View style={styles.indicatorContainer}>
+            {mediaItems.map((_, idx) => {
+              const isCompleted = idx < currentIndex;
+              const isActive = idx === currentIndex;
+              
+              return (
+                <View 
+                  key={idx} 
+                  style={styles.indicatorDotBackground}
+                >
+                  {/* Background track */}
+                  <View style={styles.indicatorTrack} />
+                  
+                  {/* Progress fill - animates from left to right */}
+                  <Animated.View 
+                    style={[
+                      styles.indicatorFill,
+                      {
+                        width: isCompleted ? 
+                          '100%' :
+                          isActive ?
+                            scrollX.interpolate({
+                              inputRange: [
+                                (currentIndex - 1) * SCREEN_WIDTH,
+                                currentIndex * SCREEN_WIDTH,
+                                (currentIndex + 1) * SCREEN_WIDTH
+                              ],
+                              outputRange: ['0%', '100%', '0%'],
+                              extrapolate: 'clamp'
+                            }) :
+                            '0%'
+                    }
+                    ]} 
+                  />
+                </View>
+              );
+            })}
+          </View>
         </View>
       )}
 
-      {/* Editorial Radial Gradient Mesh Overlay */}
-      <View style={[StyleSheet.absoluteFill, { zIndex: 1 }]} pointerEvents="none">
-        <LinearGradient
-          colors={['rgba(255, 92, 92, 0.35)', 'transparent']}
-          start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-          style={{ position: 'absolute', top: -100, left: -50, width: SCREEN_WIDTH * 1.5, height: SCREEN_HEIGHT * 0.5 }}
-        />
-        <LinearGradient
-          colors={['rgba(69, 170, 242, 0.25)', 'transparent']}
-          start={{ x: 1, y: 0.2 }} end={{ x: 0, y: 1 }}
-          style={{ position: 'absolute', top: -50, right: -100, width: SCREEN_WIDTH * 1.5, height: SCREEN_HEIGHT * 0.5 }}
-        />
-      </View>
+      {/* Bottom Info Overlay: Name, Age, Match %, Status */}
+      <View style={styles.infoOverlay}>
+        <View style={styles.infoRow}>
+          {/* Name, Age, Verified Badge */}
+          <View style={styles.nameContainer}>
+            <Text style={styles.nameText}>
+              {user.name?.split(' ')[0]}, {user.age || user.year?.replace(' Year', '') || ''}
+            </Text>
+            {(user as any).isVerified || (user as any).phone ? (
+              <View style={styles.verifiedBadgeContainer}>
+                <View style={styles.verifiedBadgeBackground} />
+                <MaterialIcons name="verified" size={24} color="#3b82f6" />
+              </View>
+            ) : null}
+          </View>
 
-      {/* Heavy Bottom Fade for Name Layering */}
-      <LinearGradient
-        colors={['transparent', 'rgba(10,10,15,0.85)', '#0a0a0f']}
-        locations={[0, 0.6, 1]}
-        style={styles.bottomGradient}
-        pointerEvents="none"
-      />
+          {/* Match Percentage Badge */}
+          <View style={styles.matchBadge}>
+            <Text style={styles.matchText}>Match {user.matchPercentage || 98}%</Text>
+          </View>
+        </View>
+
+        {/* Active Status */}
+        <View style={styles.statusContainer}>
+          <Ionicons name="time-outline" size={14} color="rgba(255,255,255,0.7)" />
+          <Text style={styles.statusText}>Active recently</Text>
+        </View>
+      </View>
     </View>
   );
 };
@@ -160,6 +252,12 @@ const styles = StyleSheet.create({
     width: '100%',
     position: 'relative',
     backgroundColor: '#111',
+    borderTopLeftRadius: 12,
+    borderTopRightRadius: 12,
+    borderBottomLeftRadius: 12,
+    borderBottomRightRadius: 12,
+    overflow: 'hidden',
+    marginHorizontal: 0,
   },
   loaderContainer: {
     backgroundColor: '#111', 
@@ -167,52 +265,169 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     zIndex: 1,
   },
+  topBar: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingTop: 24,
+    zIndex: 10,
+  },
+  indicatorContainer: {
+    flexDirection: 'row',
+    gap: 6,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  indicatorDotBackground: {
+    width: 8,
+    height: 8,
+    backgroundColor: 'rgba(255,255,255,0.4)',
+    borderRadius: 4,
+    overflow: 'hidden',
+  },
+  indicatorTrack: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(255,255,255,0.4)',
+    borderRadius: 4,
+  },
+  indicatorFill: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    bottom: 0,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 4,
+    shadowColor: '#FFFFFF',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.5,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  shareButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  infoOverlay: {
+    position: 'absolute',
+    bottom: 10,
+    left: 0,
+    right: 0,
+    paddingHorizontal: 20,
+    zIndex: 10,
+  },
+  infoRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  nameContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  nameText: {
+    fontSize: 28,
+    fontWeight: '700',
+    color: '#FFF',
+    letterSpacing: -0.5,
+    textShadowColor: 'rgba(0,0,0,0.8)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 4,
+  },
+  verifiedBadgeContainer: {
+    marginLeft: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+    position: 'relative',
+    marginTop: 4, // Slight downward shift
+  },
+  verifiedBadgeBackground: {
+    position: 'absolute',
+    width: 14,
+    height: 14,
+    backgroundColor: '#FFF',
+    borderRadius: 7,
+    zIndex: -1,
+  },
+  matchBadge: {
+    backgroundColor: 'rgba(255, 92, 92, 0.9)',
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  matchText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#FFF',
+    letterSpacing: 0.5,
+  },
+  statusContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  statusText: {
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.7)',
+    fontWeight: '500',
+  },
   bottomGradient: {
     position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
-    height: '40%',
+    height: '50%',
     zIndex: 2,
   },
-  indicatorContainer: {
-    position: 'absolute',
-    top: 20,
-    left: 0,
-    right: 0,
+  tapZoneContainer: {
+    ...StyleSheet.absoluteFillObject,
     flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 10,
-    gap: 6,
+    zIndex: 5,
   },
-  indicatorDot: {
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: '#FFF',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.8,
-    shadowRadius: 2,
+  tapZoneLeft: {
+    width: '30%',
+    height: '100%',
   },
-  indicatorActive: {
-    width: 20,
-    opacity: 1,
-  },
-  indicatorInactive: {
-    width: 4,
-    opacity: 0.5,
+  tapZoneRight: {
+    flex: 1,
+    height: '100%',
   },
   muteButton: {
     position: 'absolute',
-    bottom: 30,
-    right: 16,
+    bottom: 82,
+    right: 22,
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: 'rgba(0,0,0,0.6)',
+    backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'center',
     alignItems: 'center',
-    zIndex: 10,
-  }
+    zIndex: 100, // Ensure it's above tap zones
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
+  },
 });

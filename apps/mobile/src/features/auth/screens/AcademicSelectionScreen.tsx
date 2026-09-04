@@ -89,7 +89,7 @@ export const AcademicSelectionScreen = () => {
       ...route.params,
       degree: selectedDegree,
       department: selectedCourse,
-      year: selectedYear,
+      yearOfStudy: selectedYear,
     });
   };
 

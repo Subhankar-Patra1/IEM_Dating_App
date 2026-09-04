@@ -3,8 +3,10 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider          = "postgresql"
+  url               = env("DATABASE_URL")
+  directUrl         = env("DATABASE_URL")
+  relationMode      = "prisma"
 }
 
 model User {
@@ -16,6 +18,7 @@ model User {
   college            String?           @db.VarChar(255)
   department         String?           @db.VarChar(100)
   year               Int?
+  yearOfStudy        Int?              @map("year_of_study")
   birthday           DateTime?
   age                Int?
   gender             String?           @db.VarChar(50)
@@ -124,9 +127,11 @@ model Message {
   senderId  String    @map("sender_id") @db.Uuid
   content   String
   photoUrl  String?   @map("photo_url") @db.VarChar(500)
+  mediaKeys String[]  @default([]) @map("media_keys")
   sentAt    DateTime  @default(now()) @map("sent_at")
   readAt    DateTime? @map("read_at")
   isDeleted Boolean   @default(false) @map("is_deleted")
+  hiddenBy  String[]  @default([]) @map("hidden_by")
   match     Match     @relation(fields: [matchId], references: [id], onDelete: Cascade)
   sender    User      @relation(fields: [senderId], references: [id])
 

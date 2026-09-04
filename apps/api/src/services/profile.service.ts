@@ -1,9 +1,10 @@
 import { prisma } from '../utils/prisma';
-
+import { MediaCacheService } from './mediaCache.service';
+import { transformToCdnUrl } from '../middlewares/upload.middleware';
 
 export class ProfileService {
   static async getProfile(userId: string) {
-    return prisma.user.findUnique({
+    const profile = await prisma.user.findUnique({
       where: { id: userId },
       select: {
         id: true,
@@ -20,6 +21,7 @@ export class ProfileService {
         college: true,
         department: true,
         year: true,
+        yearOfStudy: true,
         campus: true,
         height: true,
         degree: true,
@@ -47,6 +49,19 @@ export class ProfileService {
         },
       }
     });
+
+    if (!profile) return null;
+
+    return {
+      ...profile,
+      profileVideoUrl: profile.profileVideoUrl ? transformToCdnUrl(profile.profileVideoUrl) : null,
+      videoPreviewUrl: profile.videoPreviewUrl ? transformToCdnUrl(profile.videoPreviewUrl) : null,
+      avatarUrl: profile.avatarUrl ? transformToCdnUrl(profile.avatarUrl) : null,
+      photos: profile.photos.map(p => ({
+        ...p,
+        photoUrl: transformToCdnUrl(p.photoUrl)
+      }))
+    };
   }
 
   static async updateProfile(userId: string, data: any) {
@@ -56,6 +71,7 @@ export class ProfileService {
       'orientation', 'showOrientation', 'distancePreference',
       'seeking', 'college', 'department', 'year', 'preferences',
       'campus', 'isHosteller', 'clubs', 'hangoutSpots', 'attendanceMood', 'height',
+      'yearOfStudy',
       'locationArea',
       'profileVideoUrl',
       'videoPreviewUrl',
@@ -106,10 +122,17 @@ export class ProfileService {
 
       if (photoRecords.length > 0) {
         await prisma.profilePhoto.createMany({ data: photoRecords });
+        console.log(`[ProfileService] Created ${photoRecords.length} photo records for user ${userId.slice(0, 8)}`);
+        
+        // Auto-sync avatarUrl to the first photo if not explicitly provided or if it was null
+        if (!sanitizedData.avatarUrl && photoRecords[0].photoUrl) {
+          sanitizedData.avatarUrl = photoRecords[0].photoUrl;
+          console.log(`[ProfileService] Auto-syncing avatarUrl for user ${userId.slice(0, 8)} to first photo.`);
+        }
       }
     }
 
-    return prisma.user.update({
+    const updatedProfile = await prisma.user.update({
       where: { id: userId },
       data: sanitizedData,
       select: {
@@ -125,6 +148,7 @@ export class ProfileService {
         college: true,
         department: true,
         year: true,
+        yearOfStudy: true,
         campus: true,
         isHosteller: true,
         clubs: true,
@@ -145,5 +169,19 @@ export class ProfileService {
         },
       }
     });
+
+    // Invalidate the cache after updating profile to clear stale media URLs
+    await MediaCacheService.invalidateCache(userId);
+
+    return {
+      ...updatedProfile,
+      profileVideoUrl: updatedProfile.profileVideoUrl ? transformToCdnUrl(updatedProfile.profileVideoUrl) : null,
+      videoPreviewUrl: updatedProfile.videoPreviewUrl ? transformToCdnUrl(updatedProfile.videoPreviewUrl) : null,
+      avatarUrl: updatedProfile.avatarUrl ? transformToCdnUrl(updatedProfile.avatarUrl) : null,
+      photos: updatedProfile.photos.map(p => ({
+        ...p,
+        photoUrl: transformToCdnUrl(p.photoUrl)
+      }))
+    };
   }
 }

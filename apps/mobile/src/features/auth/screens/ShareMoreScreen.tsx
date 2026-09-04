@@ -65,7 +65,8 @@ export const ShareMoreScreen = () => {
         seeking,
         department,
         degree,
-        year
+        year,
+        yearOfStudy
       } = route.params || {};
 
       const finalData: any = {
@@ -87,10 +88,13 @@ export const ShareMoreScreen = () => {
       if (department !== undefined) finalData.department = department;
       if (degree !== undefined) finalData.degree = degree;
       if (year !== undefined) finalData.year = year;
+      if (yearOfStudy !== undefined) finalData.yearOfStudy = yearOfStudy;
 
-      await api.put("/profile", finalData);
+      const response = await api.put("/profile", finalData);
 
-      dispatch(updateUser({ preferences: finalData.preferences }));
+      if (response.data?.success) {
+        dispatch(updateUser(response.data.data));
+      }
       navigation.navigate("FaceVerificationInfo");
 
       // RootNavigator will automatically switch to Main stack
@@ -116,10 +120,11 @@ export const ShareMoreScreen = () => {
         seeking,
         department,
         degree,
-        year
+        year,
+        yearOfStudy
       } = route.params || {};
 
-      const hasUpdate = [campus, isHosteller, clubs, attendanceMood, hangoutSpots, orientation, showOrientation, distancePreference, seeking, department, degree, year].some(val => val !== undefined);
+      const hasUpdate = [campus, isHosteller, clubs, attendanceMood, hangoutSpots, orientation, showOrientation, distancePreference, seeking, department, degree, year, yearOfStudy].some(val => val !== undefined);
 
       if (hasUpdate) {
         const finalData: any = {};
@@ -135,8 +140,12 @@ export const ShareMoreScreen = () => {
         if (department !== undefined) finalData.department = department;
         if (degree !== undefined) finalData.degree = degree;
         if (year !== undefined) finalData.year = year;
+        if (yearOfStudy !== undefined) finalData.yearOfStudy = yearOfStudy;
         
-        await api.put("/profile", finalData);
+        const response = await api.put("/profile", finalData);
+        if (response.data?.success) {
+          dispatch(updateUser(response.data.data));
+        }
       }
     } catch (error) {
       console.error("Failed to save skipped profile items:", error);

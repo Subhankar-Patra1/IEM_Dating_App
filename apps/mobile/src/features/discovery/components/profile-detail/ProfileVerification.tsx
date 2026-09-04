@@ -37,12 +37,12 @@ export const ProfileVerification: React.FC<ProfileVerificationProps> = ({ user }
 
 const styles = StyleSheet.create({
   container: {
-    paddingHorizontal: 20,
+    marginHorizontal: 2,
+    paddingHorizontal: 16,
     paddingVertical: 16,
-    marginHorizontal: 16,
     marginBottom: 12,
     backgroundColor: '#13131a',
-    borderRadius: 24,
+    borderRadius: 12,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.07)',
   },

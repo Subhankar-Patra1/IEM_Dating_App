@@ -8,6 +8,7 @@
     "packages/*"
   ],
   "scripts": {
+    "postinstall": "patch-package",
     "dev:api": "npm run dev --workspace=@iem-dating/api",
     "dev:mobile": "npm run start --workspace=@iem-dating/mobile",
     "services:up": "docker-compose up -d",
@@ -16,5 +17,8 @@
   "overrides": {
     "react": "19.1.0",
     "react-dom": "19.1.0"
+  },
+  "devDependencies": {
+    "patch-package": "^8.0.1"
   }
 }

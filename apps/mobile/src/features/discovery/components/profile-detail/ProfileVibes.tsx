@@ -25,14 +25,8 @@ export const ProfileVibes: React.FC<ProfileVibesProps> = ({ user }) => {
     });
   });
 
-  if (clubs.length > 0) {
-    gridItems.push({ type: 'vibe', platform: 'Clubs', label: `${clubs[0]}${clubs.length > 1 ? ' +' : ''}`, icon: 'people', color: '#ff9f43' });
-  }
-
   if (sectorVSpot) {
     gridItems.push({ type: 'vibe', platform: 'Hangout', label: sectorVSpot, icon: 'cafe', color: '#45aaf2' });
-  } else if (attendanceStyle) {
-    gridItems.push({ type: 'vibe', platform: 'Attendance', label: attendanceStyle, icon: 'book', color: '#ff5c5c' });
   }
 
   if (gridItems.length === 0) return null;

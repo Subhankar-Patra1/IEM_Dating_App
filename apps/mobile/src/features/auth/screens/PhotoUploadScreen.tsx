@@ -21,7 +21,7 @@ import { CameraView, useCameraPermissions, useMicrophonePermissions } from 'expo
 import { useVideoPlayer, VideoView } from 'expo-video';
 import { Video } from 'react-native-compressor';
 import { useDispatch } from "react-redux";
-import { completeOnboarding } from "../../../store/authSlice";
+import { completeOnboarding, updateUser } from "../../../store/authSlice";
 import { api } from "../../../services/api";
 import { store } from "../../../store";
 
@@ -598,16 +598,22 @@ export const PhotoUploadScreen = () => {
 
       // 4. HTTP PUT directly to S3
       console.log('Pushing binaries directly to S3...');
-      const uploadedPhotos: string[] = [];
-      let uploadedVideo: string | null = null;
-
-      await Promise.all(filePayloads.map(async (file, index) => {
+      const uploadResults = await Promise.all(filePayloads.map(async (file, index) => {
          const ticket = uploadTickets[index];
          
-         const response = await fetch(Platform.OS === 'ios' ? file.uri.replace('file://', '') : file.uri);
-         const blob = await response.blob();
+         // Fix: More robust file fetching for local URIs
+         let blob;
+         if (Platform.OS === 'web') {
+           const response = await fetch(file.uri);
+           blob = await response.blob();
+         } else {
+           // For native, fetch(uri) works but needs careful handling of file://
+           const uri = Platform.OS === 'ios' && !file.uri.startsWith('file://') ? `file://${file.uri}` : file.uri;
+           const response = await fetch(uri);
+           blob = await response.blob();
+         }
 
-         await fetch(ticket.uploadUrl, {
+         const s3Res = await fetch(ticket.uploadUrl, {
            method: 'PUT',
            body: blob,
            headers: {
@@ -615,26 +621,48 @@ export const PhotoUploadScreen = () => {
            }
          });
 
-         if (file.type === 'video') uploadedVideo = ticket.fileUrl;
-         if (file.type === 'photo') uploadedPhotos.push(ticket.fileUrl);
+         if (!s3Res.ok) {
+           throw new Error(`S3 Upload failed for ${file.type} with status ${s3Res.status}`);
+         }
+
+         return { type: file.type, url: ticket.fileUrl, id: file.id };
       }));
+
+      const uploadedVideo = uploadResults.find(r => r.type === 'video')?.url || null;
+      // Filter and sort photos by their original index to maintain order
+      const uploadedPhotosSorted = uploadResults
+        .filter(r => r.type === 'photo')
+        .sort((a, b) => {
+          const idxA = parseInt(a.id.split('_')[1]);
+          const idxB = parseInt(b.id.split('_')[1]);
+          return idxA - idxB;
+        })
+        .map(r => r.url);
 
       // 5. Save Final Web-Resolution Links
       console.log('Media uploaded. Saving URLs to profile...');
-      await api.put('/profile', {
+      const profileUpdateRes = await api.put('/profile', {
          profileVideoUrl: uploadedVideo,
-         photos: uploadedPhotos
+         photos: uploadedPhotosSorted,
+         avatarUrl: uploadedPhotosSorted[0] || null // Explicitly sync the first photo as avatar
       });
 
-      // 6. Trigger async video preview generation (fire-and-forget)
-      if (uploadedVideo) {
-        console.log('Triggering video preview generation...');
-        api.post('/upload/generate-preview', { videoUrl: uploadedVideo }).catch(err => {
-          console.log('Preview generation trigger failed (non-critical):', err);
-        });
-      }
+      if (profileUpdateRes.data?.success) {
+        dispatch(updateUser(profileUpdateRes.data.data));
+        
+        // 6. Trigger async video preview generation (fire-and-forget)
+        if (uploadedVideo) {
+          console.log('Triggering video preview generation...');
+          api.post('/upload/generate-preview', { videoUrl: uploadedVideo }).catch(err => {
+            console.log('Preview generation trigger failed (non-critical):', err);
+          });
+        }
 
-      dispatch(completeOnboarding());
+        console.log('Onboarding process successfully finalized.');
+        dispatch(completeOnboarding());
+      } else {
+        throw new Error('Profile update failed on server');
+      }
     } catch (error: any) {
       console.error("Upload failed", error?.response?.data || error);
       Alert.alert("Upload Failed", "There was an error uploading your media.");

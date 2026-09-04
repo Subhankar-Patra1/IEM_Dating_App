@@ -2,12 +2,20 @@ import { Request, Response, NextFunction } from 'express';
 import { ProfileService } from '../services/profile.service';
 import { ApiResponse } from '../utils/ApiResponse';
 
+import { MediaCacheService } from '../services/mediaCache.service';
+
 export class ProfileController {
   static async getProfile(req: Request, res: Response, next: NextFunction) {
     try {
       const userId = (req as any).user.sub;
+
+
       const profile = await ProfileService.getProfile(userId);
       if (!profile) return res.status(404).json(ApiResponse.error('Profile not found'));
+      
+      // Cache it for next time
+      await MediaCacheService.cacheUserMedia(userId);
+
       res.status(200).json(ApiResponse.success(profile));
     } catch (error) {
       next(error);

@@ -2,8 +2,8 @@ import { io, Socket } from 'socket.io-client';
 import { store } from '../store';
 import { Platform } from 'react-native';
 
-// Use the device-appropriate URL
-const SOCKET_URL = Platform.OS === 'android' ? 'http://10.255.179.109:3000' : 'http://localhost:3000';
+// Use Ngrok Tunnel URL for stable development networking
+const SOCKET_URL = 'https://injunctive-efrain-undecomposed.ngrok-free.dev';
 
 let socket: Socket | null = null;
 
@@ -21,6 +21,9 @@ export const initSocket = () => {
   socket = io(SOCKET_URL, {
     auth: { token },
     transports: ['websocket'],
+    extraHeaders: {
+      'ngrok-skip-browser-warning': 'true',
+    },
     reconnection: true,
     reconnectionAttempts: 10,
     reconnectionDelay: 1000,

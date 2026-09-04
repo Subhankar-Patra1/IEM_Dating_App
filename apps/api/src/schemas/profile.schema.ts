@@ -9,6 +9,7 @@ export const updateProfileSchema = z.object({
     department: z.string().min(2).optional(),
     degree: z.string().optional(),
     year: z.number().int().min(1).max(3000).optional(),
+    yearOfStudy: z.number().int().min(1).max(10).optional(),
     gender: z.string().optional(),
     showGender: z.boolean().optional(),
     orientation: z.array(z.string()).optional(),

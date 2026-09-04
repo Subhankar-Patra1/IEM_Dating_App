@@ -31,7 +31,8 @@
     },
     "plugins": [
       "expo-font",
-      "react-native-compressor"
+      "react-native-compressor",
+      "@siteed/expo-audio-studio"
     ]
   }
 }

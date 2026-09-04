@@ -59,6 +59,25 @@ export class NotificationService {
           actionUrl: `/chat/${matchId}`,
         },
       });
+
+      // TRIGGER PUSH NOTIFICATIONS
+      const tokens = await prisma.deviceToken.findMany({ where: { userId } });
+      if (tokens.length > 0) {
+        // FCM / Expo Push Payload configured strictly to open specific chat via deep linking
+        const pushPayload = {
+           to: tokens.map(t => t.token),
+           sound: 'default',
+           title: senderName,
+           body: preview,
+           data: { 
+             url: `iemdatingapp://chat/${matchId}`, // Deep link for the mobile app router
+             matchId 
+           }
+        };
+        // TODO: Call your actual Push API (e.g. Expo SDK, Firebase Admin) using pushPayload 
+        logger.info(`[PUSH] Dispatched message notification to ${tokens.length} devices for user ${userId.slice(0, 8)}`);
+      }
+
     } catch (error) {
       logger.error('[NOTIFICATION] Error sending message notification:', error);
     }

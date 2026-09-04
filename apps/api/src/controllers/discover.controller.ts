@@ -6,6 +6,8 @@ import { scoreUpdateQueue } from '../services/score-update.worker';
 import { AnalyticsService } from '../services/analytics.service';
 import { NotificationService } from '../services/notification.service';
 
+import { transformToCdnUrl } from '../middlewares/upload.middleware';
+
 export class DiscoverController {
 
   /**
@@ -26,7 +28,7 @@ export class DiscoverController {
       // Format for frontend
       const formatted = recommendations.map((rec) => {
         const user = rec.user;
-        const primaryPhoto = user.avatarUrl
+        const rawPrimaryPhoto = user.avatarUrl
           || user.photos.find((p) => p.isPrimary)?.photoUrl
           || user.photos[0]?.photoUrl
           || null;
@@ -40,12 +42,12 @@ export class DiscoverController {
           year: user.year ? `${user.year} Year` : '',
           campus: user.campus,
           isHosteller: user.isHosteller,
-          primaryPhoto,
-          photos: user.photos.map((p) => p.photoUrl),
-          video: user.profileVideoUrl,
-          videoPreview: user.videoPreviewUrl,
+          primaryPhoto: rawPrimaryPhoto ? transformToCdnUrl(rawPrimaryPhoto) : null,
+          photos: user.photos.map((p) => transformToCdnUrl(p.photoUrl)),
+          video: user.profileVideoUrl ? transformToCdnUrl(user.profileVideoUrl) : null,
+          videoPreview: user.videoPreviewUrl ? transformToCdnUrl(user.videoPreviewUrl) : null,
           seeking: user.seeking,
-          isVerified: user.isVerified,
+          isVerified: user.isVerified || !!(user as any).phone,
           matchPercentage: rec.matchPercentage,
         };
       });
@@ -152,6 +154,8 @@ export class DiscoverController {
         }
 
         return { matchCreated, matchId };
+      }, {
+        timeout: 15000, // 15 seconds to allow for multiple DB ops + potential network jitter
       });
 
       const { matchCreated, matchId } = result;

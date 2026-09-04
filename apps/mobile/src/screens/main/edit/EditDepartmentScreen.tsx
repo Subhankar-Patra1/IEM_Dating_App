@@ -44,10 +44,10 @@ export const EditDepartmentScreen = () => {
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
   const dispatch = useDispatch();
-  const { currentDepartment, currentYear } = route.params || {};
+  const { currentDepartment, currentYearOfStudy } = route.params || {};
 
   const [selectedCourse, setSelectedCourse] = useState<string | null>(currentDepartment || null);
-  const [selectedYear, setSelectedYear] = useState<number | null>(currentYear ? parseInt(currentYear) : null);
+  const [selectedYearOfStudy, setSelectedYearOfStudy] = useState<number | null>(currentYearOfStudy ? parseInt(currentYearOfStudy) : null);
   const [saving, setSaving] = useState(false);
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -65,7 +65,7 @@ export const EditDepartmentScreen = () => {
     setSaving(true);
     try {
       const data: any = { department: selectedCourse };
-      if (selectedYear) data.year = selectedYear;
+      if (selectedYearOfStudy) data.yearOfStudy = selectedYearOfStudy;
       const response = await api.put('/profile', data);
       if (response.data?.success) {
         dispatch(updateUser(response.data.data));
@@ -88,7 +88,7 @@ export const EditDepartmentScreen = () => {
         saveDisabled={!selectedCourse}
         hasUnsavedChanges={
           (selectedCourse !== null && selectedCourse !== (currentDepartment || null)) ||
-          (selectedYear !== null && selectedYear !== (currentYear ? parseInt(currentYear) : null))
+          (selectedYearOfStudy !== null && selectedYearOfStudy !== (currentYearOfStudy ? parseInt(currentYearOfStudy) : null))
         }
       />
       <Animated.View style={[styles.content, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
@@ -122,11 +122,11 @@ export const EditDepartmentScreen = () => {
                 {[1, 2, 3, 4].map((year) => (
                   <TouchableOpacity
                     key={year}
-                    style={[styles.yearPill, selectedYear === year && styles.yearPillSelected]}
-                    onPress={() => setSelectedYear(year)}
+                    style={[styles.yearPill, selectedYearOfStudy === year && styles.yearPillSelected]}
+                    onPress={() => setSelectedYearOfStudy(year)}
                     activeOpacity={0.8}
                   >
-                    <Text style={[styles.yearText, selectedYear === year && styles.yearTextSelected]}>
+                    <Text style={[styles.yearText, selectedYearOfStudy === year && styles.yearTextSelected]}>
                       {year}{year === 1 ? 'st' : year === 2 ? 'nd' : year === 3 ? 'rd' : 'th'} YR
                     </Text>
                   </TouchableOpacity>

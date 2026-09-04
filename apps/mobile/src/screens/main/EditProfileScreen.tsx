@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -1146,9 +1146,21 @@ export const EditProfileScreen = () => {
         {/* ── Campus Life ── */}
         <ListSection title="Campus Life">
           <ListRow icon="business-outline" label="College" value={profile.college || ''} onPress={() => navigation.navigate('EditCollege', { currentCollege: profile.college })} />
-          <ListRow icon="book-outline" label="Department" value={profile.department || ''} onPress={() => navigation.navigate('EditDepartment', { currentDepartment: profile.department, currentYear: profile.year })} />
+          <ListRow icon="book-outline" label="Department" value={profile.department || ''} onPress={() => navigation.navigate('EditDepartment', { currentDepartment: profile.department, currentYearOfStudy: profile.yearOfStudy })} />
           <ListRow icon="business-outline" label="Batch" value={profile.year ? `${profile.year}` : ''} onPress={() => navigation.navigate('EditBatch', { currentBatch: profile.year })} />
+          <ListRow 
+            icon="school-outline" 
+            label="Year of Study" 
+            value={profile.yearOfStudy ? `${profile.yearOfStudy}${profile.yearOfStudy === 1 ? 'st' : profile.yearOfStudy === 2 ? 'nd' : profile.yearOfStudy === 3 ? 'rd' : 'th'} YR` : ''} 
+            onPress={() => navigation.navigate('EditYear', { currentYearOfStudy: profile.yearOfStudy })} 
+          />
           <ListRow icon="location-outline" label="Campus" value={profile.campus || ''} onPress={() => navigation.navigate('EditCampus', { currentCampus: profile.campus })} />
+          <ListRow 
+            icon="home-outline" 
+            label="Residency" 
+            value={profile.isHosteller === true ? 'Hosteller' : profile.isHosteller === false ? 'Day Scholar' : ''} 
+            onPress={() => navigation.navigate('EditResidency', { currentResidency: profile.isHosteller })} 
+          />
           <ListRow icon="happy-outline" label="Attendance Mood" value={profile.attendanceMood || ''} onPress={() => navigation.navigate('EditAttendanceMood', { currentMood: profile.attendanceMood })} />
           <ListRow icon="navigate-outline" label="Distance (km)" value={profile.distancePreference ? `${profile.distancePreference} km` : ''} onPress={() => navigation.navigate('EditDistance', { currentDistance: profile.distancePreference })} isLast />
         </ListSection>
